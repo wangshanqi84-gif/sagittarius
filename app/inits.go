@@ -75,14 +75,13 @@ func initDiscovery(ctx context.Context, cfg *config.ServiceConfig) registry.Disc
 	switch cfg.Discovery.Used {
 	case "consul":
 		// 获取环境配置
-		addr := env.GetEnv(env.SgtConsulAddr)
-		if addr == "" {
+		addrs := env.GetEnv(env.SgtConsulAddr)
+		if addrs == "" {
 			return nil
 		}
-		addr = strings.TrimRight(addr, "/")
 		// 创建客户端
 		var clientOpts []consul.Option
-		c := consul.NewConsulClient(addr, clientOpts...)
+		c := consul.NewConsulClient(addrs, clientOpts...)
 		// 生成服务发现
 		discoveryOpts := []cConsul.Option{
 			cConsul.Context(ctx),
