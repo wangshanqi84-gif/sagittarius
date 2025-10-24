@@ -4,10 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
+	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -15,22 +19,31 @@ import (
 	"github.com/wangshanqi84-gif/sagittarius/cores/http/client/balancer/random"
 	"github.com/wangshanqi84-gif/sagittarius/cores/http/crypto"
 	"github.com/wangshanqi84-gif/sagittarius/cores/registry"
-	
+
 	"github.com/pkg/errors"
+	"golang.org/x/net/http2"
 )
 
 type Option func(*clientOptions)
 
 type clientOptions struct {
-	tlsConf      *tls.Config
-	timeout      time.Duration
-	syncTimeout  bool
-	transport    http.RoundTripper
-	eps          []string
-	watcher      registry.Watcher
-	balancerName string
-	interceptors []Interceptor
-	retry        int
+	serverName          string
+	certFile            string
+	keyFile             string
+	caFile              string
+	timeout             time.Duration
+	dialTimeout         time.Duration
+	keepAlive           time.Duration
+	maxIdleConns        int           // 最大空闲连接数
+	maxIdleConnsPerHost int           // 每个主机最大空闲连接数
+	idleConnTimeout     time.Duration // 空闲连接超时时间
+	tlsHandshakeTimeout time.Duration // TLS握手超时时间
+	syncTimeout         bool
+	eps                 []string
+	watcher             registry.Watcher
+	balancerName        string
+	interceptors        []Interceptor
+	retry               int
 }
 
 // WithWatcher 服务发现监听
@@ -47,12 +60,6 @@ func WithBalancerName(balancerName string) Option {
 	}
 }
 
-func WithTransport(trans *http.Transport) Option {
-	return func(o *clientOptions) {
-		o.transport = trans
-	}
-}
-
 func WithTimeout(d time.Duration) Option {
 	return func(o *clientOptions) {
 		o.timeout = d
@@ -65,9 +72,63 @@ func WithSyncTimeout(sto bool) Option {
 	}
 }
 
-func WithTLSConfig(c *tls.Config) Option {
+func WithServerName(serverName string) Option {
 	return func(o *clientOptions) {
-		o.tlsConf = c
+		o.serverName = serverName
+	}
+}
+
+func WithCertFile(certFile string) Option {
+	return func(o *clientOptions) {
+		o.certFile = certFile
+	}
+}
+
+func WithKeyFile(keyFile string) Option {
+	return func(o *clientOptions) {
+		o.keyFile = keyFile
+	}
+}
+
+func WithCAFile(caFile string) Option {
+	return func(o *clientOptions) {
+		o.caFile = caFile
+	}
+}
+
+func WithDailTimeout(dialTimeout time.Duration) Option {
+	return func(o *clientOptions) {
+		o.dialTimeout = dialTimeout
+	}
+}
+
+func WithKeepAlive(keepAlive time.Duration) Option {
+	return func(o *clientOptions) {
+		o.keepAlive = keepAlive
+	}
+}
+
+func WithMaxIdleConns(maxIdleConns int) Option {
+	return func(o *clientOptions) {
+		o.maxIdleConns = maxIdleConns
+	}
+}
+
+func WithMaxIdleConnsPerHost(maxIdleConnsPerHost int) Option {
+	return func(o *clientOptions) {
+		o.maxIdleConnsPerHost = maxIdleConnsPerHost
+	}
+}
+
+func WithIdleConnTimeout(idleConnTimeout time.Duration) Option {
+	return func(o *clientOptions) {
+		o.idleConnTimeout = idleConnTimeout
+	}
+}
+
+func WithTLSHandshakeTimeout(tlsHandshakeTimeout time.Duration) Option {
+	return func(o *clientOptions) {
+		o.tlsHandshakeTimeout = tlsHandshakeTimeout
 	}
 }
 
@@ -99,21 +160,79 @@ type Client struct {
 	retry        int
 }
 
+func createTransport(tlsCfg *tls.Config, opt *clientOptions) (http.RoundTripper, error) {
+	// 创建基础Transport
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   opt.dialTimeout,
+			KeepAlive: opt.keepAlive,
+		}).DialContext,
+		MaxIdleConns:        opt.maxIdleConns,
+		MaxIdleConnsPerHost: opt.maxIdleConnsPerHost,
+		IdleConnTimeout:     opt.idleConnTimeout,
+		TLSHandshakeTimeout: opt.tlsHandshakeTimeout,
+		TLSClientConfig:     tlsCfg,
+		ForceAttemptHTTP2:   true,
+	}
+	if err := http2.ConfigureTransport(transport); err != nil {
+		log.Println(fmt.Sprintf("http2.ConfigureTransport err:%v", err))
+	}
+	return transport, nil
+}
+
+func createTLSConfig(opt *clientOptions) (*tls.Config, error) {
+	if opt.certFile == "" && opt.keyFile == "" && opt.caFile == "" && opt.serverName == "" {
+		return nil, nil
+	}
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: false,
+		ServerName:         opt.serverName,
+	}
+	// 加载客户端证书
+	if opt.certFile != "" && opt.keyFile != "" {
+		cert, err := tls.LoadX509KeyPair(opt.certFile, opt.keyFile)
+		if err != nil {
+			return nil, errors.WithMessage(err, "| tls.LoadX509KeyPair")
+		}
+		tlsCfg.Certificates = []tls.Certificate{cert}
+	}
+	// 加载CA证书
+	if opt.caFile != "" {
+		cert, err := os.ReadFile(opt.caFile)
+		if err != nil {
+			return nil, errors.WithMessage(err, "| os.ReadFile")
+		}
+		caCertPool := x509.NewCertPool()
+		if !caCertPool.AppendCertsFromPEM(cert) {
+			return nil, errors.New("create CA cert failed")
+		}
+		tlsCfg.RootCAs = caCertPool
+	}
+	return tlsCfg, nil
+}
+
 func NewClient(ctx context.Context, opts ...Option) *Client {
 	options := clientOptions{
-		timeout:     2000 * time.Millisecond,
-		transport:   http.DefaultTransport,
-		syncTimeout: false,
+		timeout:             30 * time.Second,
+		dialTimeout:         30 * time.Second,
+		keepAlive:           30 * time.Second,
+		maxIdleConns:        100,
+		maxIdleConnsPerHost: 20,
+		idleConnTimeout:     90 * time.Second,
+		tlsHandshakeTimeout: 10 * time.Second,
+		syncTimeout:         false,
 	}
 	for _, o := range opts {
 		o(&options)
 	}
-	if options.tlsConf != nil {
-		if tr, ok := options.transport.(*http.Transport); ok {
-			tr.TLSClientConfig = options.tlsConf
-		}
+	// 创建TLS配置
+	tlsCfg, err := createTLSConfig(&options)
+	if err != nil {
+		log.Println(fmt.Sprintf("create tls config, err:%v", err))
+		tlsCfg = nil
 	}
-	insecure := options.tlsConf == nil
+	insecure := tlsCfg == nil
 	for idx := 0; idx < len(options.eps); idx++ {
 		if !strings.Contains(options.eps[idx], "://") {
 			if insecure {
@@ -138,11 +257,16 @@ func NewClient(ctx context.Context, opts ...Option) *Client {
 	} else {
 		r, _ = newResolver(ctx, nil, random.NewBuilder(), options.eps, insecure)
 	}
+	transport, err := createTransport(tlsCfg, &options)
+	if err != nil {
+		log.Println(fmt.Sprintf("http client createTransport err:%v, use default transport.", err))
+		transport = http.DefaultTransport
+	}
 	c := &Client{
 		insecure: insecure,
 		httpClient: &http.Client{
 			Timeout:   options.timeout,
-			Transport: options.transport,
+			Transport: transport,
 		},
 		syncTimeout:  options.syncTimeout,
 		resolver:     r,

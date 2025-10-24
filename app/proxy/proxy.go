@@ -225,7 +225,52 @@ func InitHttpClientUseConfig(ctx context.Context, cfg *config.ClientConfig) (*ht
 		return nil, err
 	}
 	opts = append(opts, httpClient.WithTimeout(td))
-
+	if cfg.DialTimeout != "" {
+		td, err = time.ParseDuration(cfg.DialTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithDailTimeout(td))
+	}
+	if cfg.KeepAlive != "" {
+		td, err = time.ParseDuration(cfg.KeepAlive)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithKeepAlive(td))
+	}
+	if cfg.IdleConnTimeout != "" {
+		td, err = time.ParseDuration(cfg.IdleConnTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithIdleConnTimeout(td))
+	}
+	if cfg.TLSHandshakeTimeout != "" {
+		td, err = time.ParseDuration(cfg.TLSHandshakeTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithTLSHandshakeTimeout(td))
+	}
+	if cfg.MaxIdleConns > 0 {
+		opts = append(opts, httpClient.WithMaxIdleConns(cfg.MaxIdleConns))
+	}
+	if cfg.MaxIdleConnsPerHost > 0 {
+		opts = append(opts, httpClient.WithMaxIdleConnsPerHost(cfg.MaxIdleConnsPerHost))
+	}
+	if cfg.TLS != nil {
+		opts = append(opts, httpClient.WithServerName(cfg.TLS.ServerName))
+		if cfg.TLS.CertFile != "" && cfg.TLS.KeyFile != "" {
+			opts = append(opts,
+				httpClient.WithCertFile(cfg.TLS.CertFile),
+				httpClient.WithKeyFile(cfg.TLS.KeyFile),
+			)
+		}
+		if cfg.TLS.CAFile != "" {
+			opts = append(opts, httpClient.WithCAFile(cfg.TLS.CAFile))
+		}
+	}
 	if !cfg.UnUseDiscovery && app.Router().Discovery() != nil {
 		// 开始服务发现
 		watcher, err := app.Router().Discovery().Watcher(app.Router().Ctx(), cfg.Namespace, cfg.Product, cfg.ServiceName, "http")
@@ -277,6 +322,52 @@ func InitHttpClient(ctx context.Context, name string, opts ...httpClient.Option)
 		return nil, err
 	}
 	opts = append(opts, httpClient.WithTimeout(td))
+	if cfg.DialTimeout != "" {
+		td, err = time.ParseDuration(cfg.DialTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithDailTimeout(td))
+	}
+	if cfg.KeepAlive != "" {
+		td, err = time.ParseDuration(cfg.KeepAlive)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithKeepAlive(td))
+	}
+	if cfg.IdleConnTimeout != "" {
+		td, err = time.ParseDuration(cfg.IdleConnTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithIdleConnTimeout(td))
+	}
+	if cfg.TLSHandshakeTimeout != "" {
+		td, err = time.ParseDuration(cfg.TLSHandshakeTimeout)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, httpClient.WithTLSHandshakeTimeout(td))
+	}
+	if cfg.MaxIdleConns > 0 {
+		opts = append(opts, httpClient.WithMaxIdleConns(cfg.MaxIdleConns))
+	}
+	if cfg.MaxIdleConnsPerHost > 0 {
+		opts = append(opts, httpClient.WithMaxIdleConnsPerHost(cfg.MaxIdleConnsPerHost))
+	}
+	if cfg.TLS != nil {
+		opts = append(opts, httpClient.WithServerName(cfg.TLS.ServerName))
+		if cfg.TLS.CertFile != "" && cfg.TLS.KeyFile != "" {
+			opts = append(opts,
+				httpClient.WithCertFile(cfg.TLS.CertFile),
+				httpClient.WithKeyFile(cfg.TLS.KeyFile),
+			)
+		}
+		if cfg.TLS.CAFile != "" {
+			opts = append(opts, httpClient.WithCAFile(cfg.TLS.CAFile))
+		}
+	}
 	if !cfg.UnUseDiscovery && app.Router().Discovery() != nil {
 		// 开始服务发现
 		watcher, err := app.Router().Discovery().Watcher(app.Router().Ctx(), cfg.Namespace, cfg.Product, cfg.ServiceName, "http")

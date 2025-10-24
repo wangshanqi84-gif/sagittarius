@@ -3,7 +3,6 @@ package server
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -25,9 +24,15 @@ func Addr(addr string) Option {
 	}
 }
 
-func TLS(cfg *tls.Config) Option {
+func CertFile(certFile string) Option {
 	return func(e *Engine) {
-		e.tlsCfg = cfg
+		e.certFile = certFile
+	}
+}
+
+func KeyFile(keyFile string) Option {
+	return func(e *Engine) {
+		e.keyFile = keyFile
 	}
 }
 
@@ -53,13 +58,14 @@ type Engine struct {
 	*Group
 	*http.Server
 
-	addr   string
-	UseH2C bool
-	pool   sync.Pool
-	tree   trees
-	tlsCfg *tls.Config
-	crypto crypto.ICrypto
-	onStop []func()
+	addr     string
+	UseH2C   bool
+	pool     sync.Pool
+	tree     trees
+	certFile string
+	keyFile  string
+	crypto   crypto.ICrypto
+	onStop   []func()
 }
 
 func New(opts ...Option) *Engine {
@@ -77,8 +83,7 @@ func New(opts ...Option) *Engine {
 		opt(e)
 	}
 	e.Server = &http.Server{
-		TLSConfig: e.tlsCfg,
-		Handler:   e,
+		Handler: e,
 	}
 	return e
 }
@@ -106,8 +111,8 @@ func (e *Engine) Start(ctx context.Context) error {
 	e.BaseContext = func(net.Listener) context.Context {
 		return ctx
 	}
-	if e.tlsCfg != nil {
-		err = e.Server.ListenAndServeTLS("", "")
+	if e.certFile != "" && e.keyFile != "" {
+		err = e.Server.ListenAndServeTLS(e.certFile, e.keyFile)
 	} else {
 		err = e.Server.ListenAndServe()
 	}

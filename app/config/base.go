@@ -124,8 +124,31 @@ type ClientConfig struct {
 	Retry int `yaml:"retry" json:"retry" xml:"retry"`
 	// 超时时间
 	Timeout string `yaml:"timeout" json:"timeout" xml:"timeout"`
+	// 代理超时时间
+	DialTimeout string `yaml:"dialTimeout" json:"dialTimeout" xml:"dialTimeout"`
+	// 连接保活时间
+	KeepAlive string `yaml:"keepAlive" json:"keepAlive" xml:"keepAlive"`
 	// 同步下游超时时间
 	SyncTimeout bool `yaml:"syncTimeout" json:"syncTimeout" xml:"syncTimeout"`
+	// 最大空闲连接数
+	MaxIdleConns int `yaml:"maxIdleConns" json:"maxIdleConns" xml:"maxIdleConns"`
+	// 每个主机最大空闲连接数
+	MaxIdleConnsPerHost int `yaml:"maxIdleConnsPerHost" json:"maxIdleConnsPerHost" xml:"maxIdleConnsPerHost"`
+	// 空闲连接超时时间
+	IdleConnTimeout string `yaml:"idleConnTimeout" json:"idleConnTimeout" xml:"idleConnTimeout"`
+	// TLS握手超时时间
+	TLSHandshakeTimeout string `yaml:"tlsHandshakeTimeout" json:"tlsHandshakeTimeout" xml:"tlsHandshakeTimeout"`
+	// tls配置
+	TLS *struct {
+		// 目标主机名
+		ServerName string `yaml:"serverName" json:"serverName" xml:"serverName"`
+		// 安全证书
+		CertFile string `yaml:"certFile" json:"certFile" xml:"certFile"`
+		// key证书
+		KeyFile string `yaml:"keyFile" json:"keyFile" xml:"keyFile"`
+		// ca证书
+		CAFile string `yaml:"caFile" json:"caFile" xml:"caFile"`
+	} `yaml:"tls" json:"tls" xml:"tls"`
 }
 
 type ProducerTopic struct {
