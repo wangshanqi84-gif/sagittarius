@@ -331,17 +331,21 @@ func (r *Req) makeRequest() (*http.Request, error) {
 	)
 	if r.body != nil {
 		var bs []byte
-		bs, err = _binders[r.header.Get("Content-Type")].Marshal(r.body)
-		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("| binder.Marshal:%+v", r.body))
-		}
-		if r.crypto != nil {
-			var s string
-			s, err = r.crypto.Encrypt(string(bs))
+		if _, has := _binders[r.header.Get("Content-Type")]; has {
+			bs, err = _binders[r.header.Get("Content-Type")].Marshal(r.body)
 			if err != nil {
-				return nil, err
+				return nil, errors.WithMessage(err, fmt.Sprintf("| binder.Marshal:%+v", r.body))
 			}
-			bs = []byte(s)
+			if r.crypto != nil {
+				var s string
+				s, err = r.crypto.Encrypt(string(bs))
+				if err != nil {
+					return nil, err
+				}
+				bs = []byte(s)
+			}
+		} else if _, ok := r.body.([]byte); ok {
+			bs = r.body.([]byte)
 		}
 		reader = bytes.NewReader(bs)
 	}
@@ -457,6 +461,35 @@ func (c *Client) XmlPost(r *Req, reqBody interface{}, respData interface{}) (*ht
 	}
 	if respData != nil && len(body) > 0 {
 		err = c.bind(r, body, respData)
+	}
+	return resp, err
+}
+
+func (c *Client) CustomGet(r *Req) (*http.Response, error) {
+	var (
+		err  error
+		resp *http.Response
+	)
+	r.method = http.MethodGet
+	// Send request
+	resp, _, err = c.do(r.ctx, r)
+	if err != nil {
+		return nil, err
+	}
+	return resp, err
+}
+
+func (c *Client) CustomPost(r *Req, reqBody interface{}) (*http.Response, error) {
+	var (
+		err  error
+		resp *http.Response
+	)
+	r.method = http.MethodPost
+	r.body = reqBody
+	// Send request
+	resp, _, err = c.do(r.ctx, r)
+	if err != nil {
+		return nil, err
 	}
 	return resp, err
 }
