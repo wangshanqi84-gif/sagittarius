@@ -6,14 +6,13 @@ import (
 
 // Service 服务发现信息
 type Service struct {
-	ID            string            `json:"id"`            // udid启动生成
-	ConfNamespace string            `json:"confNamespace"` // 配置文件所属命名空间
-	Namespace     string            `json:"namespace"`     // 服务所属明明空间
-	Product       string            `json:"product"`       // 服务所属产品
-	ServiceName   string            `json:"serviceName"`   // 服务名称
-	Hosts         map[string]string `json:"hosts"`         // 地址map key:proto value:host
-	Tags          string            `json:"tags"`
-	Metadata      map[string]string `json:"metadata"` // 元数据
+	ID          string            `json:"id"`          // udid启动生成
+	Namespace   string            `json:"namespace"`   // 服务所属明明空间
+	Product     string            `json:"product"`     // 服务所属产品
+	ServiceName string            `json:"serviceName"` // 服务名称
+	Hosts       map[string]string `json:"hosts"`       // 地址map key:proto value:host
+	Tags        string            `json:"tags"`
+	Metadata    map[string]string `json:"metadata"` // 元数据
 }
 
 /////////////////////////////////////////

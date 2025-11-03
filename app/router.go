@@ -87,7 +87,7 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		// 设置runtime
 		runtime.GOMAXPROCS(runtime.NumCPU())
 
-		if sd.Namespace == "" || sd.Product == "" || sd.ServiceName == "" || sd.ConfNamespace == "" {
+		if sd.Namespace == "" || sd.Product == "" || sd.ServiceName == "" {
 			panic("service undefined")
 		}
 		// 初始化context信息
@@ -113,13 +113,12 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			hosts[strings.ToLower(srv.Proto)] = fmt.Sprintf("%s:%d", clientIP(), srv.Port)
 		}
 		r.info = &registry.Service{
-			ID:            u.String(),
-			Namespace:     sd.Namespace,
-			ConfNamespace: sd.ConfNamespace,
-			Product:       sd.Product,
-			ServiceName:   sd.ServiceName,
-			Hosts:         hosts,
-			Tags:          env.GetRunEnv(),
+			ID:          u.String(),
+			Namespace:   sd.Namespace,
+			Product:     sd.Product,
+			ServiceName: sd.ServiceName,
+			Hosts:       hosts,
+			Tags:        env.GetRunEnv(),
 		}
 		// 读取配置
 		cli, err := config.Initialize(ctx, r.info, &r.baseCfg, opts...)

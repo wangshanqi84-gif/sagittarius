@@ -26,10 +26,9 @@ import (
 
 // ServiceDefine 服务定义信息
 type ServiceDefine struct {
-	ConfNamespace string // 配置文件所属明明空间
-	Namespace     string // 所属命名空间
-	Product       string // 产品 product
-	ServiceName   string // 服务名(两段式推荐)
+	Namespace   string // 所属命名空间
+	Product     string // 产品 product
+	ServiceName string // 服务名(两段式推荐)
 }
 
 /////////////////////////////////////////////////
@@ -415,7 +414,7 @@ func Initialize(ctx context.Context, info *registry.Service, v interface{}, opts
 		if password != "" {
 			ncopts = append(ncopts, nacos.WithPassword(password))
 		}
-		cfg = cfgNacos.NewConfigClient(ctx, info.ConfNamespace, info.Product, info.ServiceName, format, ncopts...)
+		cfg = cfgNacos.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, ncopts...)
 		name = fmt.Sprintf("%s.%s.config", info.Product, info.ServiceName)
 	case "etcd":
 		eps, userName, password, dailTimeout := env.GetEtcdEnv()
@@ -429,7 +428,7 @@ func Initialize(ctx context.Context, info *registry.Service, v interface{}, opts
 			etcd.Password(password),
 			etcd.DialTimeout(dailTimeout),
 		}
-		cfg = cfgEtcd.NewConfigClient(ctx, info.ConfNamespace, info.Product, info.ServiceName, format, edopts...)
+		cfg = cfgEtcd.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, edopts...)
 		name = fmt.Sprintf("%s/%s/config", info.Product, info.ServiceName)
 	case "file":
 		cfg = file.NewConfigClient(ctx, format)
@@ -487,7 +486,7 @@ func Custom(ctx context.Context, info *registry.Service, opts ...Option) (config
 		if password != "" {
 			ncopts = append(ncopts, nacos.WithPassword(password))
 		}
-		cfg = cfgNacos.NewConfigClient(ctx, info.ConfNamespace, info.Product, info.ServiceName, format, ncopts...)
+		cfg = cfgNacos.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, ncopts...)
 	case "etcd":
 		eps, userName, password, dailTimeout := env.GetEtcdEnv()
 		if eps == "" {
@@ -500,7 +499,7 @@ func Custom(ctx context.Context, info *registry.Service, opts ...Option) (config
 			etcd.Password(password),
 			etcd.DialTimeout(dailTimeout),
 		}
-		cfg = cfgEtcd.NewConfigClient(ctx, info.ConfNamespace, info.Product, info.ServiceName, format, edopts...)
+		cfg = cfgEtcd.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, edopts...)
 	case "file":
 		cfg = file.NewConfigClient(ctx, format)
 	}
