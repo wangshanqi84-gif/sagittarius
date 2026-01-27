@@ -23,6 +23,8 @@ type consumerOption struct {
 	autoCommit        bool
 	builder           core.IMessageBuilder
 	clientID          string
+	workerNumbers     int
+	seqNumbers        int
 }
 
 func ConsumerReBalance(reBalance []string) ConsumerOption {
@@ -73,6 +75,18 @@ func ConsumerClientID(clientID string) ConsumerOption {
 	}
 }
 
+func ConsumerWorkerNumbers(workerNumbers int) ConsumerOption {
+	return func(o *consumerOption) {
+		o.workerNumbers = workerNumbers
+	}
+}
+
+func ConsumerSeqNumbers(seqNumbers int) ConsumerOption {
+	return func(o *consumerOption) {
+		o.seqNumbers = seqNumbers
+	}
+}
+
 type Consumer struct {
 	gc     *core.GroupConsumer
 	topics map[string]string
@@ -93,6 +107,8 @@ func NewConsumer(ctx context.Context, groupName string, brokers []string, topics
 		reBalance:         []string{defaultConsumerRebalanceStrategy},
 		maxWaitTime:       defaultConsumerMaxWaitTime,
 		topicCreateEnable: false,
+		workerNumbers:     defaultConsumerWorkerNumbers,
+		seqNumbers:        defaultConsumerSeqNumbers,
 	}
 	for _, opt := range opts {
 		if opt != nil {
@@ -136,7 +152,7 @@ func NewConsumer(ctx context.Context, groupName string, brokers []string, topics
 		topicList = append(topicList, v)
 	}
 	gc, err := core.NewGroupConsumer(ctx, cfg, groupName, brokers, option.topicCreateEnable,
-		option.autoCommit, option.builder, topicList)
+		option.autoCommit, option.builder, topicList, option.workerNumbers, option.seqNumbers)
 	if err != nil {
 		return nil, err
 	}

@@ -596,6 +596,12 @@ func InitKafkaConsumer(name string, opts ...kafka.ConsumerOption) (*kafka.Consum
 	if cfg.OffsetInitial != 0 {
 		opts = append(opts, kafka.ConsumerOffsetInitial(cfg.OffsetInitial))
 	}
+	if cfg.WorkerNumbers > 0 {
+		opts = append(opts, kafka.ConsumerWorkerNumbers(cfg.WorkerNumbers))
+	}
+	if cfg.SeqNumbers > 0 {
+		opts = append(opts, kafka.ConsumerSeqNumbers(cfg.SeqNumbers))
+	}
 	if cfg.ReBalance != "" {
 		rbs := strings.Split(cfg.ReBalance, ",")
 		if len(rbs) > 0 && rbs[0] != "" {

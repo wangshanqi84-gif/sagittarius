@@ -220,7 +220,7 @@ func (l *Logger) write(ctx context.Context, level Level, format string, args ...
 	if buf.Len() > 0 {
 		buf.WriteString("\n")
 	}
-	w.Write(buf.Bytes())
+	_, _ = w.Write(buf.Bytes())
 }
 
 func SetPath(path string) Option {

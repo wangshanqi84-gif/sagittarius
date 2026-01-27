@@ -13,13 +13,15 @@ import (
 type Handler func(ctx context.Context, msg *ConsumerMessage)
 
 type GroupConsumer struct {
-	ctx        context.Context
-	topics     []string
-	autoCommit bool
-	builder    IMessageBuilder
-	group      sarama.ConsumerGroup
-	kafkaVer   sarama.KafkaVersion
-	handlers   map[string][]Handler
+	ctx           context.Context
+	topics        []string
+	autoCommit    bool
+	builder       IMessageBuilder
+	group         sarama.ConsumerGroup
+	kafkaVer      sarama.KafkaVersion
+	handlers      map[string][]Handler
+	workerNumbers int
+	workerCh      chan *ConsumerMessage
 }
 
 func (gc *GroupConsumer) Setup(sess sarama.ConsumerGroupSession) error {
@@ -33,15 +35,14 @@ func (gc *GroupConsumer) Cleanup(sess sarama.ConsumerGroupSession) error {
 func (gc *GroupConsumer) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
-		case msg := <-claim.Messages():
+		case msg, ok := <-claim.Messages():
+			if !ok {
+				return nil
+			}
 			cm := gc.builder.ConsumerMessage(gc.ctx, msg, gc.kafkaVer)
 			// 这里阻塞写入chan 因此为了效率 消费者应该异步处理
 			cm.sess = sess
-			if _, has := gc.handlers[cm.Topic()]; has {
-				for _, hd := range gc.handlers[cm.Topic()] {
-					hd(cm.Ctx(), cm)
-				}
-			}
+			gc.workerCh <- cm
 			if gc.autoCommit {
 				// 标记
 				// sarama会自动进行提交 默认间隔1秒
@@ -115,7 +116,9 @@ func NewGroupConsumer(
 	topicCreateEnable bool,
 	autoCommit bool,
 	builder IMessageBuilder,
-	topics []string) (*GroupConsumer, error) {
+	topics []string,
+	workerNumbers int,
+	seqNumbers int) (*GroupConsumer, error) {
 	// 初始化client
 	c, err := sarama.NewClient(brokers, cfg)
 	if err != nil {
@@ -153,13 +156,39 @@ func NewGroupConsumer(
 		return nil, err
 	}
 	gc := GroupConsumer{
-		ctx:        ctx,
-		topics:     topics,
-		autoCommit: autoCommit,
-		builder:    builder,
-		group:      group,
-		kafkaVer:   cfg.Version,
-		handlers:   make(map[string][]Handler),
+		ctx:           ctx,
+		topics:        topics,
+		autoCommit:    autoCommit,
+		builder:       builder,
+		group:         group,
+		kafkaVer:      cfg.Version,
+		workerNumbers: workerNumbers,
+		handlers:      make(map[string][]Handler),
+	}
+	if seqNumbers > 0 {
+		gc.workerCh = make(chan *ConsumerMessage, seqNumbers)
+	} else {
+		gc.workerCh = make(chan *ConsumerMessage)
+	}
+	// 启动worker
+	for i := 0; i < gc.workerNumbers; i++ {
+		go func() {
+			for {
+				select {
+				case msg, ok := <-gc.workerCh:
+					if !ok {
+						return
+					}
+					if _, has := gc.handlers[msg.Topic()]; has {
+						for _, hd := range gc.handlers[msg.Topic()] {
+							hd(msg.Ctx(), msg)
+						}
+					}
+				case <-gc.ctx.Done():
+					return
+				}
+			}
+		}()
 	}
 	return &gc, nil
 }

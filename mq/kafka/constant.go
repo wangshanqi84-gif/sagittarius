@@ -27,4 +27,6 @@ const (
 	defaultConsumerCommitRetryTimes  = 3
 	defaultConsumerMaxWaitTime       = 100 * time.Millisecond
 	defaultConsumerRebalanceStrategy = "sticky"
+	defaultConsumerWorkerNumbers     = 8
+	defaultConsumerSeqNumbers        = 16
 )

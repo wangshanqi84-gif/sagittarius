@@ -245,6 +245,10 @@ type KafkaConsumerConfig struct {
 	TopicCreateEnable bool `yaml:"topicCreateEnable" json:"topicCreateEnable" toml:"topicCreateEnable"`
 	// 是否允许自动创提交offset
 	AutoCommit bool `yaml:"autoCommit" json:"autoCommit" toml:"autoCommit"`
+	// handler池数量
+	WorkerNumbers int `yaml:"workerNumbers" json:"workerNumbers" toml:"workerNumbers"`
+	// handler队列缓冲区大小
+	SeqNumbers int `yaml:"seqNumbers" json:"seqNumbers" toml:"seqNumbers"`
 }
 
 type ServiceConfig struct {
