@@ -88,6 +88,52 @@ func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
 	return c, nil
 }
 
+// InitSqlClientWithConfig 初始化mysql客户端
+func InitSqlClientWithConfig(cfg *config.DatabaseConfig) (*mysql.Client, error) {
+	if cfg == nil {
+		return nil, errors.New(fmt.Sprintf("app init sql client, config is nil"))
+	}
+	if cfg.Name == "" {
+		return nil, errors.New(fmt.Sprintf("app init sql client, name is empty"))
+	}
+	_sqlMutex.Lock()
+	defer _sqlMutex.Unlock()
+	if c, has := _sqlClient.Load(cfg.Name); has {
+		return c.(*mysql.Client), nil
+	}
+	if cfg.Master == "" {
+		return nil, errors.New(fmt.Sprintf("app init sql client, master is nil, name:%s", cfg.Name))
+	}
+	var opts []mysql.Option
+	if cfg.MaxIdle > 0 {
+		opts = append(opts, mysql.MaxIdle(cfg.MaxIdle))
+	}
+	if cfg.MaxOpen > 0 {
+		opts = append(opts, mysql.MaxOpen(cfg.MaxOpen))
+	}
+	if cfg.MaxLifeTime != "" {
+		td, err := time.ParseDuration(cfg.MaxLifeTime)
+		if err != nil {
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxlifetime, value:%s", cfg.MaxLifeTime))
+		}
+		opts = append(opts, mysql.MaxLifeTime(td))
+	}
+	if cfg.MaxIdleTime != "" {
+		td, err := time.ParseDuration(cfg.MaxIdleTime)
+		if err != nil {
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxidletime, value:%s", cfg.MaxIdleTime))
+		}
+		opts = append(opts, mysql.MaxLifeTime(td))
+	}
+	opts = append(opts, mysql.Logger(logger.GetLogger()))
+	c, err := mysql.NewClient(cfg.Master, cfg.Slaves, opts...)
+	if err != nil {
+		return nil, err
+	}
+	_sqlClient.Store(cfg.Name, c)
+	return c, nil
+}
+
 // InitRedisClient 初始化redis客户端
 func InitRedisClient(name string, opts ...redis.Option) (*redis.Client, error) {
 	_redisMutex.Lock()
