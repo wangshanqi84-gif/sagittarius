@@ -91,10 +91,10 @@ func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
 // InitSqlClientWithConfig 初始化mysql客户端
 func InitSqlClientWithConfig(cfg *config.DatabaseConfig) (*mysql.Client, error) {
 	if cfg == nil {
-		return nil, errors.New(fmt.Sprintf("app init sql client, config is nil"))
+		return nil, errors.New("app init sql client, config is nil")
 	}
 	if cfg.Name == "" {
-		return nil, errors.New(fmt.Sprintf("app init sql client, name is empty"))
+		return nil, errors.New("app init sql client, name is empty")
 	}
 	_sqlMutex.Lock()
 	defer _sqlMutex.Unlock()
