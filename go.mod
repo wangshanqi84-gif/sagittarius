@@ -18,9 +18,11 @@ require (
 	github.com/nacos-group/nacos-sdk-go v1.1.6
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.20.5
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	go.etcd.io/etcd/client/v3 v3.6.5
 	golang.org/x/net v0.44.0
+	golang.org/x/sync v0.17.0
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/yaml.v3 v3.0.1
@@ -86,7 +88,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
-	github.com/prometheus/client_golang v1.20.5 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
@@ -104,7 +105,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.42.0 // indirect
 	golang.org/x/exp v0.0.0-20250808145144-a408d31f581a // indirect
-	golang.org/x/sync v0.17.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250303144028-a0af3efb3deb // indirect
