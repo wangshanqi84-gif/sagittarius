@@ -62,7 +62,7 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 				return
 			case res := <-watchChan:
 				if res.Err() != nil {
-					continue
+					break
 				}
 				for _, event := range res.Events {
 					switch event.Type {
@@ -75,7 +75,6 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 						default:
 							err = json.Unmarshal(event.Kv.Value, v)
 						}
-						break
 					}
 				}
 			}
