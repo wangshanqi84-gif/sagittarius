@@ -61,12 +61,12 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 			case <-cc.ctx.Done():
 				return
 			case res := <-watchChan:
+				if res.Err() != nil {
+					continue
+				}
 				for _, event := range res.Events {
 					switch event.Type {
 					case clientv3.EventTypePut:
-						if key != string(event.Kv.Value) {
-							continue
-						}
 						switch cc.format {
 						case "yaml":
 							err = yaml.Unmarshal(event.Kv.Value, v)

@@ -77,7 +77,7 @@ func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
 		if err != nil {
 			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxidletime, value:%s", cfg.MaxIdleTime))
 		}
-		opts = append(opts, mysql.MaxLifeTime(td))
+		opts = append(opts, mysql.MaxIdleTime(td))
 	}
 	opts = append(opts, mysql.Logger(logger.GetLogger()))
 	c, err := mysql.NewClient(cfg.Master, cfg.Slaves, opts...)
@@ -123,7 +123,7 @@ func InitSqlClientWithConfig(cfg *config.DatabaseConfig) (*mysql.Client, error) 
 		if err != nil {
 			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxidletime, value:%s", cfg.MaxIdleTime))
 		}
-		opts = append(opts, mysql.MaxLifeTime(td))
+		opts = append(opts, mysql.MaxIdleTime(td))
 	}
 	opts = append(opts, mysql.Logger(logger.GetLogger()))
 	c, err := mysql.NewClient(cfg.Master, cfg.Slaves, opts...)
@@ -459,7 +459,7 @@ func InitRocketProducer(ctx context.Context, name string, opts ...producer.Optio
 	}
 	bks := strings.Split(cfg.Brokers, ",")
 	opts = append(opts, producer.WithNameServer(bks))
-	if cfg.Timeout != "" {
+	if cfg.Timeout == "" {
 		cfg.Timeout = "5s"
 	}
 	td, err := time.ParseDuration(cfg.Timeout)

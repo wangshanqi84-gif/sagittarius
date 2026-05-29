@@ -102,6 +102,12 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			baseCtx: ctx,
 			cancel:  cancel,
 		}
+		// 读取配置
+		cli, err := config.Initialize(ctx, r.info, &r.baseCfg, opts...)
+		if err != nil {
+			panic(err)
+		}
+		r.config = cli
 		// 确保服务器 GetTime 肯定会成功,因此忽略掉 error
 		u, _ := uuid.NewUUID()
 		// 初始化服务信息
@@ -120,12 +126,6 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			Hosts:       hosts,
 			Tags:        env.GetRunEnv(),
 		}
-		// 读取配置
-		cli, err := config.Initialize(ctx, r.info, &r.baseCfg, opts...)
-		if err != nil {
-			panic(err)
-		}
-		r.config = cli
 		// 生成fullname
 		fullName := fmt.Sprintf("%s.%s.%s", sd.Namespace, sd.Product, sd.ServiceName)
 		// 初始化日志
