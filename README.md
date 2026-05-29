@@ -27,7 +27,7 @@ Jaeger配置
 > SGT_ENV_SERVICE - 服务环境(testing等 除testing外自定义) 默认"testing"
 > SGT_CONFIG_SOURCE - 配置来源 支持file/nacos/etcd 默认"nacos" (基础配置和自定义配置必须同源，且当使用file时，需通过config.WithPath来指定文件路径)
 > SGT_CONFIG_FORMAT - 配置格式 支持json/yaml/xml 默认"json"
-> SGT_METRIC_DISABLE - 是否禁用监控(runtime/pprof/sentry) true:关闭(不推荐) 默认"false"
+> SGT_PPROF_ENABLE - 是否启用pprof监控 true:启用 默认"false"
 > SGT_LOG_PATH - 日志保存路径 默认"./log"
 
 ## 集成中间件

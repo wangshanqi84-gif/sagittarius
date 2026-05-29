@@ -5,15 +5,15 @@ package env
 // SGT_CONFIG_SOURCE 配置文件来源(目前支持nacos，etcd，file) 默认consul
 // SGT_CONFIG_FORMAT 配置文件格式(目前支持json，xml，yaml) 默认json
 // SGT_LOG_PATH 日志路径 默认为"./log"
-// SGT_METRIC_DISABLE 是否禁用监控 true为关闭 默认false
+// SGT_PPROF_DISABLE 是否禁用pprof true为关闭 默认true
 // --
 
 const (
-	SgtEnvService    = "SGT_ENV_SERVICE"
-	SgtConfigSource  = "SGT_CONFIG_SOURCE"
-	SgtConfigFormat  = "SGT_CONFIG_FORMAT"
-	SgtLogPath       = "SGT_LOG_PATH"
-	SgtMetricDisable = "SGT_METRIC_DISABLE"
+	SgtEnvService   = "SGT_ENV_SERVICE"
+	SgtConfigSource = "SGT_CONFIG_SOURCE"
+	SgtConfigFormat = "SGT_CONFIG_FORMAT"
+	SgtLogPath      = "SGT_LOG_PATH"
+	SgtPProfEnable  = "SGT_PPROF_ENABLE"
 )
 
 // Nacos相关环境变量

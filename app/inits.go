@@ -145,24 +145,25 @@ func initDiscovery(ctx context.Context, cfg *config.ServiceConfig) registry.Disc
 }
 
 func initMetric(ctx context.Context, fullName string, cfg []*config.ServerConfig) []metric.IMetric {
-	if strings.ToLower(env.GetEnv(env.SgtMetricDisable)) == "true" {
-		return nil
-	}
-	// 找到最大配置端口
-	port := 0
-	for _, c := range cfg {
-		if c.Port > port {
-			port = c.Port
-		}
-	}
-	if port == 0 {
-		port = 8801
-	} else {
-		port += 1
-	}
-	return []metric.IMetric{
+	var mtrs []metric.IMetric
+	mtrs = append(mtrs,
 		local.InitMetric(ctx),
-		pprof.InitMetric(ctx, pprof.SetPort(port)),
 		sentry.InitMetric(ctx, sentry.SetServerName(fullName)),
+	)
+	if strings.ToLower(env.GetEnv(env.SgtPProfEnable)) == "true" {
+		// 找到最大配置端口
+		port := 0
+		for _, c := range cfg {
+			if c.Port > port {
+				port = c.Port
+			}
+		}
+		if port == 0 {
+			port = 8801
+		} else {
+			port += 1
+		}
+		mtrs = append(mtrs, pprof.InitMetric(ctx, pprof.SetPort(port)))
 	}
+	return mtrs
 }

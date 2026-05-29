@@ -55,6 +55,8 @@ func NewEtcdClient(opts ...Option) *clientv3.Client {
 	}
 	c, err := clientv3.New(clientv3.Config{
 		Endpoints:   o.eps,
+		Username:    o.username,
+		Password:    o.password,
 		DialTimeout: td,
 		DialOptions: []grpc.DialOption{grpc.WithBlock()},
 	})

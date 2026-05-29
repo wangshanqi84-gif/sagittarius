@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
-	"net"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -112,27 +111,6 @@ func (c *Context) TraceID() string {
 		}
 	}
 	return traceID
-}
-
-func (c *Context) RemoteAddr() string {
-	ip := c.r.Header.Get("X-Real-IP")
-	if net.ParseIP(ip) != nil {
-		return ip
-	}
-	ip = c.r.Header.Get("X-Forward-For")
-	for _, i := range strings.Split(ip, ",") {
-		if net.ParseIP(i) != nil {
-			return i
-		}
-	}
-	ip, _, err := net.SplitHostPort(c.r.RemoteAddr)
-	if err != nil {
-		return ""
-	}
-	if net.ParseIP(ip) != nil {
-		return ip
-	}
-	return ""
 }
 
 func (c *Context) WithValue(key any, value any) {

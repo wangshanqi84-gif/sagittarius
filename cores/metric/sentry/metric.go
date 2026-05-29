@@ -58,7 +58,7 @@ func (m *Metric) Start() {
 			AttachStacktrace: true,
 			ServerName:       m.serverName,
 		}); err != nil {
-			log.Println(fmt.Sprintf("init sentry error:%v", err))
+			log.Printf("init sentry error:%v", err)
 		}
 		m.isAlive = true
 	}

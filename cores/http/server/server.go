@@ -16,6 +16,10 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+const (
+	bodyMaxByte = 1024 * 1024 * 4
+)
+
 type Option func(*Engine)
 
 func Addr(addr string) Option {
@@ -170,7 +174,8 @@ func (e *Engine) handleHTTPRequest(c *Context) {
 		}
 	}
 	// 提前解析body
-	data, err := io.ReadAll(c.Request().Body)
+	ioBody := http.MaxBytesReader(c.Writer(), c.Request().Body, bodyMaxByte)
+	data, err := io.ReadAll(ioBody)
 	if err != nil {
 		_ = c.HttpError(499, fmt.Sprintf("request body decode error:%v", err.Error()))
 		return
