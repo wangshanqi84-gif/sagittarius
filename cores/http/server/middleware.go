@@ -8,10 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"net/http"
 
-	gErrors "github.com/wangshanqi84-gif/sagittarius/cores/errors"
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
+	gErrors "github.com/wangshanqi84-gif/sagittarius/cores/errors"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
 
 	"github.com/getsentry/sentry-go"
@@ -90,7 +89,9 @@ func SyncTimeoutHandler(lgr *logger.Logger) core {
 			}
 			to := time.Duration(deadline - time.Now().UnixMilli())
 			c.ctx = gCtx.NewTimeoutClientContext(c.ctx, to*time.Millisecond)
-			c.ctx, _ = context.WithTimeout(c.ctx, to*time.Millisecond)
+			ctx, cancel := context.WithTimeout(c.ctx, to*time.Millisecond)
+			defer cancel()
+			c.ctx = ctx
 		}
 		c.Next()
 	}
@@ -101,8 +102,9 @@ func WithTimeoutHandler(sec int64, milliSec int64) core {
 		dc := time.Duration(sec)*time.Second + time.Duration(milliSec)*time.Millisecond
 
 		c.ctx = gCtx.NewTimeoutClientContext(c.ctx, dc)
-		c.ctx, _ = context.WithTimeout(c.ctx, dc)
-
+		ctx, cancel := context.WithTimeout(c.ctx, dc)
+		defer cancel()
+		c.ctx = ctx
 		c.Next()
 	}
 }

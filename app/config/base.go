@@ -47,7 +47,7 @@ type LogConfig struct {
 
 // ServerConfig 启动服务配置
 type ServerConfig struct {
-	// 协议类型 http/rpc/websocket
+	// 协议类型 http/rpc/websocket/socketio；同一服务实例每种 proto 仅允许配置一次
 	Proto string `yaml:"proto" json:"proto" xml:"proto"`
 	// 启动端口
 	Port int `yaml:"port" json:"port" xml:"port"`
@@ -341,6 +341,53 @@ func (c *ServiceConfig) KafkaConsumer(name string) *KafkaConsumerConfig {
 		}
 	}
 	return nil
+}
+
+// ValidateServers 校验 servers 配置：协议合法、每种 proto 仅允许出现一次、端口合法。
+func (c *ServiceConfig) ValidateServers() error {
+	if len(c.Svrs) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(c.Svrs))
+	for _, svr := range c.Svrs {
+		proto := registry.NormalizeProto(svr.Proto)
+		if !registry.IsSupportedProto(proto) {
+			return fmt.Errorf("unsupported server proto %q", svr.Proto)
+		}
+		if _, dup := seen[proto]; dup {
+			return fmt.Errorf("duplicate server proto %q: one protocol allows only one port", proto)
+		}
+		if svr.Port <= 0 || svr.Port > 65535 {
+			return fmt.Errorf("invalid port for proto %q: %d", proto, svr.Port)
+		}
+		seen[proto] = struct{}{}
+	}
+	return nil
+}
+
+// ServerByProto 按协议查找唯一 server 配置。
+func (c *ServiceConfig) ServerByProto(proto string) (*ServerConfig, error) {
+	proto = registry.NormalizeProto(proto)
+	for _, svr := range c.Svrs {
+		if registry.NormalizeProto(svr.Proto) == proto {
+			return svr, nil
+		}
+	}
+	return nil, fmt.Errorf("server config for proto %q not found", proto)
+}
+
+// BuildServiceHosts 构建服务注册用的 hosts map。
+func BuildServiceHosts(ip string, svrs []*ServerConfig) (map[string]string, error) {
+	cfg := &ServiceConfig{Svrs: svrs}
+	if err := cfg.ValidateServers(); err != nil {
+		return nil, err
+	}
+	hosts := make(map[string]string, len(svrs))
+	for _, svr := range svrs {
+		proto := registry.NormalizeProto(svr.Proto)
+		hosts[proto] = fmt.Sprintf("%s:%d", ip, svr.Port)
+	}
+	return hosts, nil
 }
 
 /////////////////////////////////////////////////

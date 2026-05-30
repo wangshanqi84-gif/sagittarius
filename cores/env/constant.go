@@ -6,6 +6,7 @@ package env
 // SGT_CONFIG_FORMAT 配置文件格式(目前支持json，xml，yaml) 默认json
 // SGT_LOG_PATH 日志路径 默认为"./log"
 // SGT_PPROF_DISABLE 是否禁用pprof true为关闭 默认true
+// SGT_HOST_IP 服务器IP地址 默认自动获取
 // --
 
 const (
@@ -14,6 +15,7 @@ const (
 	SgtConfigFormat = "SGT_CONFIG_FORMAT"
 	SgtLogPath      = "SGT_LOG_PATH"
 	SgtPProfEnable  = "SGT_PPROF_ENABLE"
+	SgtHostIp       = "SGT_HOST_IP"
 )
 
 // Nacos相关环境变量

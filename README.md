@@ -62,6 +62,8 @@ format - 日志格式(console/json) 默认console
 proto - 协议类型(http/rpc/websocket)  
 port - 端口号  
 特别说明：pprof使用的端口号为所有配置server的最大端口号+1  
+> **约束**：`servers` 数组中同一 `proto` 只能出现一次；多种协议（如 http + websocket）可并存。
+> 框架会将各协议注册到服务发现的 `hosts` map，key 为协议名，value 为 `ip:port`。
 ```json
 [
   {

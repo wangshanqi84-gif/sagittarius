@@ -60,10 +60,10 @@ func invoke(ctx context.Context, c *Client, req *http.Request) (*http.Response, 
 		} else {
 			req.URL.Scheme = "https"
 		}
-		if _, has := node.Hosts["http"]; !has {
+		host, ok := node.Endpoint(registry.ProtoHTTP)
+		if !ok {
 			return nil, errors.New("no matching address found")
 		}
-		host := node.Hosts["http"]
 		if strings.Contains(host, "://") {
 			ss := strings.Split(host, "://")
 			req.URL.Scheme = ss[0]

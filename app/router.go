@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -68,14 +67,8 @@ func (r *router) ConfigClient() (configuration.IConfig, error) {
 }
 
 var (
-	once       sync.Once
-	r          *router
-	allowProto = map[string]struct{}{
-		"rpc":       {},
-		"http":      {},
-		"websocket": {},
-		"socketio":  {},
-	}
+	once sync.Once
+	r    *router
 )
 
 func Router() *router {
@@ -91,9 +84,10 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			panic("service undefined")
 		}
 		// 初始化context信息
+		ip := clientIP()
 		ctx, cancel := context.WithCancel(context.Background())
 		ctx = gCtx.NewServerContext(ctx, gCtx.TransData{
-			Endpoint:    clientIP(),
+			Endpoint:    ip,
 			Namespace:   sd.Namespace,
 			Product:     sd.Product,
 			ServiceName: sd.ServiceName,
@@ -118,12 +112,9 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		}
 		r.config = cli
 		// 初始化服务信息
-		hosts := make(map[string]string)
-		for _, srv := range r.baseCfg.Svrs {
-			if _, has := allowProto[strings.ToLower(srv.Proto)]; !has {
-				panic("service proto not support")
-			}
-			hosts[strings.ToLower(srv.Proto)] = fmt.Sprintf("%s:%d", clientIP(), srv.Port)
+		hosts, err := config.BuildServiceHosts(ip, r.baseCfg.Svrs)
+		if err != nil {
+			panic(err)
 		}
 		r.info.Hosts = hosts
 		// 生成fullname
@@ -134,8 +125,8 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		r.tracer = initTracer(fullName)
 		// 初始化服务发现
 		r.discovery = initDiscovery(ctx, &r.baseCfg)
-		if r.discovery == nil && r.baseCfg.Discovery.Used != "" {
-			panic(fmt.Sprintf("discovery %v configured but client init failed, check env", r.baseCfg.Discovery.Used))
+		if r.baseCfg.Discovery != nil && r.baseCfg.Discovery.Used != "" && r.discovery == nil {
+			panic(fmt.Sprintf("discovery %q configured but client init failed, check env", r.baseCfg.Discovery.Used))
 		}
 		// 初始化监控
 		r.metrics = initMetric(r.baseCtx, fullName, r.baseCfg.Svrs)
@@ -237,6 +228,10 @@ func ShutDown() error {
 }
 
 func clientIP() string {
+	ip := env.GetEnv(env.SgtHostIp)
+	if ip != "" {
+		return ip
+	}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		panic(err)

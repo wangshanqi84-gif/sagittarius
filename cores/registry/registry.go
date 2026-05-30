@@ -6,13 +6,24 @@ import (
 
 // Service 服务发现信息
 type Service struct {
-	ID          string            `json:"id"`          // udid启动生成
-	Namespace   string            `json:"namespace"`   // 服务所属明明空间
-	Product     string            `json:"product"`     // 服务所属产品
-	ServiceName string            `json:"serviceName"` // 服务名称
-	Hosts       map[string]string `json:"hosts"`       // 地址map key:proto value:host
-	Tags        string            `json:"tags"`
-	Metadata    map[string]string `json:"metadata"` // 元数据
+	ID          string `json:"id"`          // udid启动生成
+	Namespace   string `json:"namespace"`   // 服务所属明明空间
+	Product     string `json:"product"`     // 服务所属产品
+	ServiceName string `json:"serviceName"` // 服务名称
+	// Hosts 按协议维度的注册地址，key 为 proto（http/rpc/websocket/socketio）。
+	// 设计约束：每种协议至多一个 endpoint；多协议可并存（如 http + websocket）。
+	Hosts    map[string]string `json:"hosts"`
+	Tags     string            `json:"tags"`
+	Metadata map[string]string `json:"metadata"` // 元数据
+}
+
+// Endpoint 返回指定协议的注册地址。
+func (s *Service) Endpoint(proto string) (string, bool) {
+	if s == nil || len(s.Hosts) == 0 {
+		return "", false
+	}
+	addr, ok := s.Hosts[NormalizeProto(proto)]
+	return addr, ok && addr != ""
 }
 
 /////////////////////////////////////////

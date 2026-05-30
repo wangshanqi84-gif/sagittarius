@@ -51,13 +51,14 @@ func (r *discoveryResolver) watch() {
 func (r *discoveryResolver) updateCC(srvs []*registry.Service) {
 	addrs := make([]resolver.Address, 0)
 	for _, srv := range srvs {
-		if _, has := srv.Hosts["rpc"]; !has {
+		address, ok := srv.Endpoint(registry.ProtoRPC)
+		if !ok {
 			continue
 		}
 		addr := resolver.Address{
 			ServerName: srv.ServiceName,
 			Attributes: parseAttributes(srv.Metadata),
-			Addr:       srv.Hosts["rpc"],
+			Addr:       address,
 		}
 		addrs = append(addrs, addr)
 	}

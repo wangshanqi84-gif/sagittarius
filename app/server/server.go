@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/wangshanqi84-gif/sagittarius/app"
+	"github.com/wangshanqi84-gif/sagittarius/app/config"
 	httpSrv "github.com/wangshanqi84-gif/sagittarius/cores/http/server"
+	"github.com/wangshanqi84-gif/sagittarius/cores/registry"
 	rpcSrv "github.com/wangshanqi84-gif/sagittarius/cores/rpc/server"
 	ioSrv "github.com/wangshanqi84-gif/sagittarius/cores/socketio/server"
 	wsSrv "github.com/wangshanqi84-gif/sagittarius/cores/websocket/server"
@@ -17,22 +19,22 @@ import (
 	"google.golang.org/grpc"
 )
 
+func mustServerPort(cfg *config.ServiceConfig, proto string) int {
+	svr, err := cfg.ServerByProto(proto)
+	if err != nil {
+		panic(err.Error())
+	}
+	return svr.Port
+}
+
 func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
 	cfg := app.Router().Config()
 	// 初始化server
 	// 找到rpc配置
-	for _, svr := range cfg.Svrs {
-		if strings.ToLower(svr.Proto) == "rpc" {
-			opts = append(opts, rpcSrv.Address(fmt.Sprintf(":%d", svr.Port)))
-			break
-		}
-	}
-	if len(opts) == 0 {
-		panic("undefined rpc server port")
-	}
+	opts = append(opts, rpcSrv.Address(fmt.Sprintf(":%d", mustServerPort(cfg, registry.ProtoRPC))))
 	opts = append(opts, rpcSrv.UnaryInterceptor(
-		rpcSrv.LangServerUnaryInterceptor(),
 		rpcSrv.RecoverServerInterceptor(logger.GetLogger()),
+		rpcSrv.LangServerUnaryInterceptor(),
 		grpcPrometheus.UnaryServerInterceptor,
 		rpcSrv.TracingServerUnaryInterceptor(app.Router().Tracer()),
 		rpcSrv.AccessServerUnaryInterceptor(logger.GetAccess(), !cfg.AccessRequestDisable),
@@ -52,15 +54,7 @@ func InitWebSocketServer(opts ...wsSrv.Option) *wsSrv.Engine {
 	cfg := app.Router().Config()
 	// 初始化server
 	// 找到websocket配置
-	for _, svr := range cfg.Svrs {
-		if strings.ToLower(svr.Proto) == "websocket" {
-			opts = append(opts, wsSrv.Port(fmt.Sprintf("%d", svr.Port)))
-			break
-		}
-	}
-	if len(opts) == 0 {
-		panic("undefined websocket server port")
-	}
+	opts = append(opts, wsSrv.Port(fmt.Sprintf("%d", mustServerPort(cfg, registry.ProtoWebSocket))))
 	// 初始化server
 	var options []wsSrv.Option
 	path := fmt.Sprintf("/%s/%s/ws", app.Router().Service().Product,
@@ -80,15 +74,7 @@ func InitSocketIOServer(opts ...ioSrv.Option) *ioSrv.Engine {
 	cfg := app.Router().Config()
 	// 初始化server
 	// 找到rpc配置
-	for _, svr := range cfg.Svrs {
-		if strings.ToLower(svr.Proto) == "socketio" {
-			opts = append(opts, ioSrv.Port(fmt.Sprintf("%d", svr.Port)))
-			break
-		}
-	}
-	if len(opts) == 0 {
-		panic("undefined socket.io server port")
-	}
+	opts = append(opts, ioSrv.Port(fmt.Sprintf("%d", mustServerPort(cfg, registry.ProtoSocketIO))))
 	// 初始化server
 	srv := ioSrv.NewServer(opts...)
 	srv.Use(
@@ -104,15 +90,7 @@ func InitHttpServer(opts ...httpSrv.Option) *httpSrv.Engine {
 	cfg := app.Router().Config()
 	// 初始化server
 	// 找到rpc配置
-	for _, svr := range cfg.Svrs {
-		if strings.ToLower(svr.Proto) == "http" {
-			opts = append(opts, httpSrv.Addr(fmt.Sprintf(":%d", svr.Port)))
-			break
-		}
-	}
-	if len(opts) == 0 {
-		panic("undefined http server port")
-	}
+	opts = append(opts, httpSrv.Addr(fmt.Sprintf(":%d", mustServerPort(cfg, registry.ProtoHTTP))))
 	srv := httpSrv.New(opts...)
 	srv.Use(
 		httpSrv.PanicHandler(logger.GetLogger()),
