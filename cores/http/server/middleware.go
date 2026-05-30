@@ -8,7 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"net/http"
 
+	gErrors "github.com/wangshanqi84-gif/sagittarius/cores/errors"
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
 
@@ -34,6 +36,9 @@ func PanicHandler(lgr *logger.Logger) core {
 				hub := sentry.CurrentHub().Clone()
 				hub.CaptureException(errors.New(string(buf[:])))
 				hub.Flush(5 * time.Second)
+
+				_ = c.JsonErr(gErrors.New(gErrors.UnknownCode, gErrors.UnknownErrorMessage))
+				c.Abort()
 			}
 		}()
 		c.Next()

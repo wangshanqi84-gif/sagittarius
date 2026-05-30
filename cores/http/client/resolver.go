@@ -75,5 +75,8 @@ func newResolver(ctx context.Context, watcher registry.Watcher, balanceBuilder b
 
 func (r *resolver) Close() error {
 	log.Println("resolver closed.")
-	return r.watcher.Stop()
+	if r.watcher != nil {
+		return r.watcher.Stop()
+	}
+	return nil
 }

@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	unknownCode        = 500
-	unKnowErrorMessage = "Server busy, please try again later"
+	UnknownCode         = 500
+	UnknownErrorMessage = "Server busy, please try again later"
 )
 
 type Error struct {
@@ -103,5 +103,5 @@ func Cause(err error, lang string) *Error {
 		e := err.(*Error)
 		return New(e.code, e.langMessage(lang))
 	}
-	return New(unknownCode, unKnowErrorMessage)
+	return New(UnknownCode, UnknownErrorMessage)
 }

@@ -102,14 +102,21 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			baseCtx: ctx,
 			cancel:  cancel,
 		}
+		// 确保服务器 GetTime 肯定会成功,因此忽略掉 error
+		u, _ := uuid.NewUUID()
+		r.info = &registry.Service{
+			ID:          u.String(),
+			Namespace:   sd.Namespace,
+			Product:     sd.Product,
+			ServiceName: sd.ServiceName,
+			Tags:        env.GetRunEnv(),
+		}
 		// 读取配置
 		cli, err := config.Initialize(ctx, r.info, &r.baseCfg, opts...)
 		if err != nil {
 			panic(err)
 		}
 		r.config = cli
-		// 确保服务器 GetTime 肯定会成功,因此忽略掉 error
-		u, _ := uuid.NewUUID()
 		// 初始化服务信息
 		hosts := make(map[string]string)
 		for _, srv := range r.baseCfg.Svrs {
@@ -118,14 +125,7 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			}
 			hosts[strings.ToLower(srv.Proto)] = fmt.Sprintf("%s:%d", clientIP(), srv.Port)
 		}
-		r.info = &registry.Service{
-			ID:          u.String(),
-			Namespace:   sd.Namespace,
-			Product:     sd.Product,
-			ServiceName: sd.ServiceName,
-			Hosts:       hosts,
-			Tags:        env.GetRunEnv(),
-		}
+		r.info.Hosts = hosts
 		// 生成fullname
 		fullName := fmt.Sprintf("%s.%s.%s", sd.Namespace, sd.Product, sd.ServiceName)
 		// 初始化日志
@@ -134,6 +134,9 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		r.tracer = initTracer(fullName)
 		// 初始化服务发现
 		r.discovery = initDiscovery(ctx, &r.baseCfg)
+		if r.discovery == nil && r.baseCfg.Discovery.Used != "" {
+			panic(fmt.Sprintf("discovery %v configured but client init failed, check env", r.baseCfg.Discovery.Used))
+		}
 		// 初始化监控
 		r.metrics = initMetric(r.baseCtx, fullName, r.baseCfg.Svrs)
 		logger.Gen(r.baseCtx, "app %s init over", fullName)

@@ -450,7 +450,7 @@ func InitRocketProducer(ctx context.Context, name string, opts ...producer.Optio
 	if cfg.Brokers == "" {
 		return nil, errors.New("rocket brokers is nil")
 	}
-	if len(cfg.Topic) == 0 {
+	if len(cfg.Topic) != 0 {
 		topics := make(map[string]string)
 		for _, topic := range cfg.Topic {
 			topics[topic.Alias] = topic.Name

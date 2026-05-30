@@ -16,8 +16,10 @@ import (
 	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 ///////////////////////////////////////////
@@ -36,6 +38,8 @@ func RecoverServerInterceptor(lgr *logger.Logger) grpc.UnaryServerInterceptor {
 				hub := sentry.CurrentHub().Clone()
 				hub.CaptureException(errors.New(string(buf[:])))
 				hub.Flush(5 * time.Second)
+
+				err = status.Errorf(codes.Internal, "internal server error")
 			}
 		}()
 		return handler(ctx, req)

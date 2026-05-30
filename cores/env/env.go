@@ -10,7 +10,11 @@ func GetEnv(key string) string {
 }
 
 func GetRunEnv() string {
-	return strings.ToLower(os.Getenv(SgtEnvService))
+	v := strings.ToLower(os.Getenv(SgtEnvService))
+	if v == "" {
+		v = "testing"
+	}
+	return v
 }
 
 func GetNacosEnv() (string, string, string, string, string) {
