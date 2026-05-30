@@ -29,6 +29,7 @@ Jaeger配置
 > SGT_CONFIG_FORMAT - 配置格式 支持json/yaml/xml 默认"json"
 > SGT_PPROF_ENABLE - 是否启用pprof监控 true:启用 默认"false"
 > SGT_LOG_PATH - 日志保存路径 默认"./log"
+> SGT_HOST_IP - 服务器本机IP
 
 ## 集成中间件
 Mysql : gorm  

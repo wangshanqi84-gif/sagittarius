@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -172,26 +173,9 @@ func Run() {
 				return nil
 			})
 		}
-		eg.Go(func() error {
-			select {
-			case <-r.baseCtx.Done():
-				logger.Gen(r.baseCtx, "app %s.%s.%s stopping...",
-					r.Service().Namespace, r.Service().Product, r.Service().ServiceName)
-				var errors []error
-				for _, srv := range r.srvs {
-					if err := srv.Stop(r.baseCtx); err != nil {
-						errors = append(errors, err)
-					}
-				}
-				if len(errors) > 0 {
-					return errors[0]
-				}
-				return nil
-			}
-		})
 	}
 	// 开始服务注册
-	if r.discovery != nil {
+	if r.discovery != nil && len(r.info.Hosts) > 0 {
 		if err := r.discovery.Register(r.baseCtx, r.info); err != nil {
 			panic(err)
 		}
@@ -215,7 +199,7 @@ func Run() {
 func ShutDown() error {
 	defer r.cancel()
 
-	if r.discovery != nil {
+	if r.discovery != nil && len(r.info.Hosts) > 0 {
 		ctx, cancel := context.WithTimeout(r.baseCtx, 5*time.Second)
 		defer cancel()
 		if err := r.discovery.Deregister(ctx, r.info); err != nil {
@@ -224,13 +208,24 @@ func ShutDown() error {
 		}
 		logger.Gen(r.baseCtx, "service %s deregister, %v", r.info.ServiceName, r.info)
 	}
+	for _, srv := range r.srvs {
+		if err := srv.Stop(r.baseCtx); err != nil {
+			logger.Gen(r.baseCtx, "server stop error:%v", err)
+		}
+	}
 	return nil
 }
 
 func clientIP() string {
-	ip := env.GetEnv(env.SgtHostIp)
-	if ip != "" {
-		return ip
+	if raw := strings.TrimSpace(env.GetEnv(env.SgtHostIp)); raw != "" {
+		if host, _, err := net.SplitHostPort(raw); err == nil {
+			// 允许用户误填 ip:port，只取 host
+			raw = host
+		}
+		if parsed := net.ParseIP(raw); parsed == nil {
+			panic(fmt.Sprintf("invalid SGT_HOST_IP: %q", raw))
+		}
+		return raw
 	}
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

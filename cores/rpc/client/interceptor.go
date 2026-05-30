@@ -91,7 +91,7 @@ func LangClientUnaryInterceptor() grpc.UnaryClientInterceptor {
 		}
 		md := gCtx.Metadata{MD: rpcMD}
 		gCtx.SetUberLangHeader(md, gCtx.FromLangClientContext(ctx))
-        ctx = metadata.NewOutgoingContext(ctx, md.MD)
+		ctx = metadata.NewOutgoingContext(ctx, md.MD)
 		return invoker(ctx, method, request, reply, cc, opts...)
 	}
 }

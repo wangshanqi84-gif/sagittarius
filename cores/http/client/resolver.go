@@ -34,7 +34,7 @@ func newResolver(ctx context.Context, watcher registry.Watcher, balanceBuilder b
 			var services []*registry.Service
 			for _, ep := range r.eps {
 				services = append(services, &registry.Service{
-					Hosts: map[string]string{"http": ep},
+					Hosts: map[string]string{registry.ProtoHTTP: ep},
 				})
 			}
 			r.balancer.Update(ctx, services)
