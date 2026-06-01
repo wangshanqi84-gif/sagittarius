@@ -31,7 +31,8 @@ func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
 	cfg := app.Router().Config()
 	// 初始化server
 	// 找到rpc配置
-	opts = append(opts, rpcSrv.Address(fmt.Sprintf(":%d", mustServerPort(cfg, registry.ProtoRPC))))
+	port := mustServerPort(cfg, registry.ProtoRPC)
+	opts = append(opts, rpcSrv.Address(fmt.Sprintf(":%d", port)))
 	opts = append(opts, rpcSrv.UnaryInterceptor(
 		rpcSrv.RecoverServerInterceptor(logger.GetLogger()),
 		rpcSrv.LangServerUnaryInterceptor(),
@@ -46,7 +47,12 @@ func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
 	grpcPrometheus.EnableHandlingTimeHistogram()
 	grpcPrometheus.Register(srv.Server)
 
-	netHttp.Handle("/metrics", promhttp.Handler())
+	go func() {
+		err := netHttp.ListenAndServe(fmt.Sprintf(":%d", port), promhttp.Handler())
+		if err != nil {
+			panic(err.Error())
+		}
+	}()
 	return srv
 }
 
