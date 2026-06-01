@@ -176,7 +176,7 @@ func createTransport(tlsCfg *tls.Config, opt *clientOptions) (http.RoundTripper,
 		ForceAttemptHTTP2:   true,
 	}
 	if err := http2.ConfigureTransport(transport); err != nil {
-		log.Println(fmt.Sprintf("http2.ConfigureTransport err:%v", err))
+		log.Printf("http2.ConfigureTransport err:%v\n", err)
 	}
 	return transport, nil
 }
@@ -229,7 +229,7 @@ func NewClient(ctx context.Context, opts ...Option) *Client {
 	// 创建TLS配置
 	tlsCfg, err := createTLSConfig(&options)
 	if err != nil {
-		log.Println(fmt.Sprintf("create tls config, err:%v", err))
+		log.Printf("create tls config, err:%v\n", err)
 		tlsCfg = nil
 	}
 	insecure := tlsCfg == nil
@@ -259,7 +259,7 @@ func NewClient(ctx context.Context, opts ...Option) *Client {
 	}
 	transport, err := createTransport(tlsCfg, &options)
 	if err != nil {
-		log.Println(fmt.Sprintf("http client createTransport err:%v, use default transport.", err))
+		log.Printf("http client createTransport err:%v, use default transport.\n", err)
 		transport = http.DefaultTransport
 	}
 	c := &Client{

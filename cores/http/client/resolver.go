@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -44,7 +43,7 @@ func newResolver(ctx context.Context, watcher registry.Watcher, balanceBuilder b
 			for {
 				services, err := r.watcher.Start()
 				if err != nil {
-					log.Println(fmt.Sprintf("resolver watcher err:%v", err))
+					log.Printf("resolver watcher err:%v\n", err)
 					if errors.Is(err, context.Canceled) {
 						return
 					}
