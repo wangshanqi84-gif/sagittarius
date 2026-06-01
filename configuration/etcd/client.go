@@ -9,6 +9,7 @@ import (
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
 	"github.com/wangshanqi84-gif/sagittarius/etcd"
+	"github.com/wangshanqi84-gif/sagittarius/logger"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/yaml.v3"
@@ -74,6 +75,9 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 							err = xml.Unmarshal(event.Kv.Value, v)
 						default:
 							err = json.Unmarshal(event.Kv.Value, v)
+						}
+						if err != nil {
+							logger.Gen(cc.ctx, "unmarshal config error:%v", err)
 						}
 					}
 				}

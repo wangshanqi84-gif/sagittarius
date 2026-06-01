@@ -154,14 +154,14 @@ func initMetric(ctx context.Context, fullName string, cfg []*config.ServerConfig
 		// 找到最大配置端口
 		port := 0
 		for _, c := range cfg {
-			if c.Port > port {
+			if c.Port < port {
 				port = c.Port
 			}
 		}
 		if port == 0 {
 			port = 8801
 		} else {
-			port += 1
+			port -= 1
 		}
 		mtrs = append(mtrs, pprof.InitMetric(ctx, pprof.SetPort(port)))
 	}

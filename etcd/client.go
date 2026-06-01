@@ -4,7 +4,6 @@ import (
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
-	"google.golang.org/grpc"
 )
 
 type Option func(*option)
@@ -58,7 +57,6 @@ func NewEtcdClient(opts ...Option) *clientv3.Client {
 		Username:    o.username,
 		Password:    o.password,
 		DialTimeout: td,
-		DialOptions: []grpc.DialOption{grpc.WithBlock()},
 	})
 	if err != nil {
 		panic(err)
