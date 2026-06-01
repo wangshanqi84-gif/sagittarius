@@ -43,11 +43,6 @@ func (gc *GroupConsumer) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sa
 			// 这里阻塞写入chan 因此为了效率 消费者应该异步处理
 			cm.sess = sess
 			gc.workerCh <- cm
-			if gc.autoCommit {
-				// 标记
-				// sarama会自动进行提交 默认间隔1秒
-				sess.MarkMessage(msg, "")
-			}
 		case <-sess.Context().Done():
 			// 关闭时进行提交
 			sess.Commit()
@@ -84,8 +79,8 @@ func (gc *GroupConsumer) start(topics []string, handler sarama.ConsumerGroupHand
 			}
 			err := gc.group.Consume(gc.ctx, topics, handler)
 			if err != nil {
-				switch err {
-				case sarama.ErrClosedClient, sarama.ErrClosedConsumerGroup:
+				switch {
+				case errors.Is(err, sarama.ErrClosedClient), errors.Is(err, sarama.ErrClosedConsumerGroup):
 					// 退出
 					return
 				default:
@@ -183,6 +178,11 @@ func NewGroupConsumer(
 						for _, hd := range gc.handlers[msg.Topic()] {
 							hd(msg.Ctx(), msg)
 						}
+					}
+					if gc.autoCommit {
+						// 标记
+						// sarama会自动进行提交 默认间隔1秒
+						msg.sess.MarkMessage(msg.msg, "")
 					}
 				case <-gc.ctx.Done():
 					return
