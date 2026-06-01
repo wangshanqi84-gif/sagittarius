@@ -54,6 +54,9 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 	default:
 		err = json.Unmarshal(resp.Kvs[0].Value, v)
 	}
+	if err != nil {
+		return err
+	}
 	// 监听处理
 	go func() {
 		watchChan := cc.cli.Watch(cc.ctx, key)
