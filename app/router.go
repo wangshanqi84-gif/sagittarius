@@ -197,22 +197,29 @@ func Run() {
 }
 
 func ShutDown() error {
-	defer r.cancel()
+	sctx, scancel := context.WithTimeout(r.baseCtx, 15*time.Second)
+	defer scancel()
 
 	if r.discovery != nil && len(r.info.Hosts) > 0 {
-		ctx, cancel := context.WithTimeout(r.baseCtx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(sctx, 5*time.Second)
 		defer cancel()
 		if err := r.discovery.Deregister(ctx, r.info); err != nil {
-			logger.Gen(r.baseCtx, "server shutdown, deregister error:%v", err)
-			return err
+			logger.Gen(sctx, "server shutdown, deregister error:%v", err)
+		} else {
+			logger.Gen(sctx, "service %s deregister, %v", r.info.ServiceName, r.info)
 		}
-		logger.Gen(r.baseCtx, "service %s deregister, %v", r.info.ServiceName, r.info)
 	}
 	for _, srv := range r.srvs {
-		if err := srv.Stop(r.baseCtx); err != nil {
-			logger.Gen(r.baseCtx, "server stop error:%v", err)
+		if err := srv.Stop(sctx); err != nil {
+			logger.Gen(sctx, "server stop error:%v", err)
 		}
 	}
+	if r.tracer != nil {
+		if err := r.tracer.Close(); err != nil {
+			logger.Gen(sctx, "tracer close error:%v", err)
+		}
+	}
+	r.cancel()
 	return nil
 }
 

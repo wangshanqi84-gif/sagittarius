@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
+	"github.com/wangshanqi84-gif/sagittarius/logger"
 	"github.com/wangshanqi84-gif/sagittarius/nacos"
 
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
@@ -87,6 +88,9 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 					err = xml.Unmarshal([]byte(s), v)
 				default:
 					err = json.Unmarshal([]byte(s), v)
+				}
+				if err != nil {
+					logger.Gen(cc.ctx, "unmarshal config error:%v", err)
 				}
 			}
 		}

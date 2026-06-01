@@ -343,7 +343,9 @@ func (c *ServiceConfig) KafkaConsumer(name string) *KafkaConsumerConfig {
 	return nil
 }
 
-// ValidateServers 校验 servers 配置：协议合法、每种 proto 仅允许出现一次、端口合法。
+// ValidateServers 校验 servers 配置。
+// 空列表合法：纯消费者/定时任务等不对外暴露端口，仍可使用服务发现调用下游。
+// 非空时：每种 proto 至多一条，端口须合法。
 func (c *ServiceConfig) ValidateServers() error {
 	if len(c.Svrs) == 0 {
 		return nil

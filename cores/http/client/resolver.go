@@ -54,7 +54,7 @@ func newResolver(ctx context.Context, watcher registry.Watcher, balanceBuilder b
 				if len(services) == 0 && len(r.eps) != 0 {
 					for _, ep := range r.eps {
 						services = append(services, &registry.Service{
-							Hosts: map[string]string{"http": ep},
+							Hosts: map[string]string{registry.ProtoHTTP: ep},
 						})
 					}
 				}

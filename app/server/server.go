@@ -48,9 +48,9 @@ func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
 	grpcPrometheus.Register(srv.Server)
 
 	go func() {
-		err := netHttp.ListenAndServe(fmt.Sprintf(":%d", port), promhttp.Handler())
+		err := netHttp.ListenAndServe(fmt.Sprintf(":%d", port+1), promhttp.Handler())
 		if err != nil {
-			panic(err.Error())
+			logger.Gen(app.Router().Ctx(), "init rpc server metrics error:%v", err)
 		}
 	}()
 	return srv

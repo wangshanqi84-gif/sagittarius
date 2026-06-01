@@ -88,6 +88,9 @@ func SyncTimeoutHandler(lgr *logger.Logger) core {
 				lgr.Error(c.ctx, "strconv.ParseInt err:%v", err)
 			}
 			to := time.Duration(deadline - time.Now().UnixMilli())
+			if to <= 0 {
+				to = time.Millisecond
+			}
 			c.ctx = gCtx.NewTimeoutClientContext(c.ctx, to*time.Millisecond)
 			ctx, cancel := context.WithTimeout(c.ctx, to*time.Millisecond)
 			defer cancel()
