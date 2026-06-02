@@ -52,7 +52,11 @@ func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
 	if c, has := _sqlClient.Load(name); has {
 		return c.(*mysql.Client), nil
 	}
-	cfg := app.Router().Config().GetDatabase(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.GetDatabase(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init sql client, config is nil, name:%s", name))
 	}
@@ -141,7 +145,11 @@ func InitRedisClient(name string, opts ...redis.Option) (*redis.Client, error) {
 	if c, has := _redisClient.Load(name); has {
 		return c.(*redis.Client), nil
 	}
-	cfg := app.Router().Config().GetRedis(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.GetRedis(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init redis client, config is nil, name:%s", name))
 	}
@@ -192,7 +200,11 @@ func InitRedisClient(name string, opts ...redis.Option) (*redis.Client, error) {
 func InitRPCClient(ctx context.Context, name string, opts ...rpcClient.Option) (*grpc.ClientConn, error) {
 	_clientMutex.Lock()
 	defer _clientMutex.Unlock()
-	fullKey, cfg := app.Router().Config().GetClient(name, "rpc")
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	fullKey, cfg := baseCfg.GetClient(name, "rpc")
 	if c, has := _client.Load(fullKey); has {
 		return c.(*grpc.ClientConn), nil
 	}
@@ -218,7 +230,6 @@ func InitRPCClient(ctx context.Context, name string, opts ...rpcClient.Option) (
 		opts = append(opts, rpcClient.WithWatcher(watcher))
 	}
 	var timeout time.Duration
-	var err error
 	if cfg.Timeout != "" {
 		timeout, err = time.ParseDuration(cfg.Timeout)
 		if err != nil {
@@ -343,7 +354,11 @@ func InitHttpClientUseConfig(ctx context.Context, cfg *config.ClientConfig) (*ht
 func InitHttpClient(ctx context.Context, name string, opts ...httpClient.Option) (*httpClient.Client, error) {
 	_clientMutex.Lock()
 	defer _clientMutex.Unlock()
-	fullKey, cfg := app.Router().Config().GetClient(name, "http")
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	fullKey, cfg := baseCfg.GetClient(name, "http")
 	if c, has := _client.Load(fullKey); has {
 		return c.(*httpClient.Client), nil
 	}
@@ -443,7 +458,11 @@ func InitRocketProducer(ctx context.Context, name string, opts ...producer.Optio
 	if c, has := _rocketProducer.Load(name); has {
 		return c.(*producer.Producer), nil
 	}
-	cfg := app.Router().Config().RocketProducer(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.RocketProducer(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init rocket producer, config is nil, name:%s", name))
 	}
@@ -497,7 +516,11 @@ func InitRocketConsumer(ctx context.Context, name string, opts ...consumer.Optio
 	if c, has := _rocketConsumer.Load(name); has {
 		return c.(*consumer.PushConsumer), nil
 	}
-	cfg := app.Router().Config().RocketConsumer(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.RocketConsumer(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init rocket consumer, config is nil, name:%s", name))
 	}
@@ -555,7 +578,11 @@ func InitKafkaProducer(name string, opts ...kafka.ProducerOption) (*kafka.Produc
 	if c, has := _kafkaProducer.Load(name); has {
 		return c.(*kafka.Producer), nil
 	}
-	cfg := app.Router().Config().KafkaProducer(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.KafkaProducer(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init kafka producer, config is nil, name:%s", name))
 	}
@@ -609,7 +636,11 @@ func InitKafkaConsumer(name string, opts ...kafka.ConsumerOption) (*kafka.Consum
 	if c, has := _kafkaConsumer.Load(name); has {
 		return c.(*kafka.Consumer), nil
 	}
-	cfg := app.Router().Config().KafkaConsumer(name)
+	baseCfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
+	cfg := baseCfg.KafkaConsumer(name)
 	if cfg == nil {
 		return nil, errors.New(fmt.Sprintf("app init kafka consumer, config is nil, name:%s", name))
 	}

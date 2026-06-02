@@ -419,7 +419,7 @@ func WithPath(path string) Option {
 	}
 }
 
-func Initialize(ctx context.Context, info *registry.Service, v interface{}, opts ...Option) (configuration.IConfig, error) {
+func Initialize(ctx context.Context, info *registry.Service, opts ...Option) (configuration.IConfig, error) {
 	var err error
 	o := option{}
 	for _, opt := range opts {
@@ -487,7 +487,7 @@ func Initialize(ctx context.Context, info *registry.Service, v interface{}, opts
 		cfg = file.NewConfigClient(ctx, format)
 		name = o.path
 	}
-	if err = cfg.GetConfig(name, v); err != nil {
+	if err = cfg.LoadConfig(name); err != nil {
 		return nil, err
 	}
 	return cfg, nil

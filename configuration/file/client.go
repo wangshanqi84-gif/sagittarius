@@ -11,8 +11,9 @@ import (
 )
 
 type ConfigClient struct {
-	ctx    context.Context
-	format string
+	ctx      context.Context
+	format   string
+	cfgValue string
 }
 
 func NewConfigClient(ctx context.Context, format string) *ConfigClient {
@@ -22,26 +23,43 @@ func NewConfigClient(ctx context.Context, format string) *ConfigClient {
 	}
 }
 
-func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
-	bs, err := os.ReadFile(name)
+func (cc *ConfigClient) LoadConfig(key string) error {
+	bs, err := os.ReadFile(key)
 	if err != nil {
 		return err
 	}
 	if len(bs) == 0 {
 		return errors.New("config file does not exist")
 	}
-	switch cc.format {
-	case "yaml":
-		err = yaml.Unmarshal(bs, v)
-	case "xml":
-		err = xml.Unmarshal(bs, v)
-	default:
-		err = json.Unmarshal(bs, v)
+	cc.cfgValue = string(bs)
+	return nil
+}
+
+func (cc *ConfigClient) GetConfig(v interface{}) error {
+	if cc.cfgValue == "" {
+		return errors.New("config value is empty")
 	}
-	return err
+	err := cc.unmarshal(v)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // PublishConfig 指定配置文件场合无法put配置修正
 func (cc *ConfigClient) PublishConfig(_ string, _ interface{}) error {
 	return nil
+}
+
+func (cc *ConfigClient) unmarshal(v interface{}) error {
+	var err error
+	switch cc.format {
+	case "yaml":
+		err = yaml.Unmarshal([]byte(cc.cfgValue), v)
+	case "xml":
+		err = xml.Unmarshal([]byte(cc.cfgValue), v)
+	default:
+		err = json.Unmarshal([]byte(cc.cfgValue), v)
+	}
+	return err
 }

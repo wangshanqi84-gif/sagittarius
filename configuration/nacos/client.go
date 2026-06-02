@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"sync"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
-	"github.com/wangshanqi84-gif/sagittarius/logger"
 	"github.com/wangshanqi84-gif/sagittarius/nacos"
 
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
@@ -23,6 +23,8 @@ type ConfigClient struct {
 	namespace string
 	product   string
 	name      string
+	cfgValue  string
+	mu        sync.RWMutex
 }
 
 func NewConfigClient(ctx context.Context, namespace string, product string,
@@ -38,12 +40,12 @@ func NewConfigClient(ctx context.Context, namespace string, product string,
 	}
 }
 
-func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
+func (cc *ConfigClient) LoadConfig(key string) error {
 	if cc.cli == nil {
 		return nil
 	}
 	param := vo.ConfigParam{
-		DataId: name,
+		DataId: key,
 		Group:  env.GetRunEnv(),
 	}
 	switch cc.format {
@@ -67,38 +69,40 @@ func (cc *ConfigClient) GetConfig(name string, v interface{}) error {
 	if err = cc.cli.ListenConfig(param); err != nil {
 		return err
 	}
-	switch cc.format {
-	case "yaml":
-		err = yaml.Unmarshal([]byte(vs), v)
-	case "xml":
-		err = xml.Unmarshal([]byte(vs), v)
-	default:
-		err = json.Unmarshal([]byte(vs), v)
-	}
+	cc.mu.Lock()
+	cc.cfgValue = vs
+	cc.mu.Unlock()
+
 	go func() {
 		for {
 			select {
 			case <-cc.ctx.Done():
 				return
 			case s := <-cc.changeCh:
-				switch cc.format {
-				case "yaml":
-					err = yaml.Unmarshal([]byte(s), v)
-				case "xml":
-					err = xml.Unmarshal([]byte(s), v)
-				default:
-					err = json.Unmarshal([]byte(s), v)
-				}
-				if err != nil {
-					logger.Gen(cc.ctx, "unmarshal config error:%v", err)
-				}
+				cc.mu.Lock()
+				cc.cfgValue = s
+				cc.mu.Unlock()
 			}
 		}
 	}()
 	return err
 }
 
-func (cc *ConfigClient) PublishConfig(name string, v interface{}) error {
+func (cc *ConfigClient) GetConfig(v interface{}) error {
+	if cc.cfgValue == "" {
+		return errors.New("config value is empty")
+	}
+	cc.mu.RLock()
+	defer cc.mu.RUnlock()
+
+	err := cc.unmarshal(v)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cc *ConfigClient) PublishConfig(key string, v interface{}) error {
 	if cc.cli == nil {
 		return nil
 	}
@@ -120,10 +124,23 @@ func (cc *ConfigClient) PublishConfig(name string, v interface{}) error {
 		return err
 	}
 	_, err = cc.cli.PublishConfig(vo.ConfigParam{
-		DataId:  name,
+		DataId:  key,
 		Group:   env.GetRunEnv(),
 		Type:    cType,
 		Content: string(bs),
 	})
+	return err
+}
+
+func (cc *ConfigClient) unmarshal(v interface{}) error {
+	var err error
+	switch cc.format {
+	case "yaml":
+		err = yaml.Unmarshal([]byte(cc.cfgValue), v)
+	case "xml":
+		err = xml.Unmarshal([]byte(cc.cfgValue), v)
+	default:
+		err = json.Unmarshal([]byte(cc.cfgValue), v)
+	}
 	return err
 }

@@ -32,7 +32,6 @@ type router struct {
 
 	info      *registry.Service
 	discovery registry.Discovery
-	baseCfg   config.ServiceConfig
 	config    configuration.IConfig
 	tracer    tracing.Tracer
 	metrics   []metric.IMetric
@@ -43,8 +42,12 @@ func (r *router) Ctx() context.Context {
 	return r.baseCtx
 }
 
-func (r *router) Config() *config.ServiceConfig {
-	return &r.baseCfg
+func (r *router) Config() (*config.ServiceConfig, error) {
+	var baseCfg config.ServiceConfig
+	if err := r.config.GetConfig(&baseCfg); err != nil {
+		return nil, err
+	}
+	return &baseCfg, nil
 }
 
 func (r *router) Discovery() registry.Discovery {
@@ -107,13 +110,17 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 			Tags:        env.GetRunEnv(),
 		}
 		// 读取配置
-		cli, err := config.Initialize(ctx, r.info, &r.baseCfg, opts...)
+		cli, err := config.Initialize(ctx, r.info, opts...)
 		if err != nil {
 			panic(err)
 		}
 		r.config = cli
+		var baseCfg config.ServiceConfig
+		if err = r.config.GetConfig(&baseCfg); err != nil {
+			panic(err)
+		}
 		// 初始化服务信息
-		hosts, err := config.BuildServiceHosts(ip, r.baseCfg.Svrs)
+		hosts, err := config.BuildServiceHosts(ip, baseCfg.Svrs)
 		if err != nil {
 			panic(err)
 		}
@@ -121,16 +128,16 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		// 生成fullname
 		fullName := fmt.Sprintf("%s.%s.%s", sd.Namespace, sd.Product, sd.ServiceName)
 		// 初始化日志
-		initLogger(r.baseCfg.Log)
+		initLogger(baseCfg.Log)
 		// 初始化链路追踪
 		r.tracer = initTracer(fullName)
 		// 初始化服务发现
-		r.discovery = initDiscovery(ctx, &r.baseCfg)
-		if r.baseCfg.Discovery != nil && r.baseCfg.Discovery.Used != "" && r.discovery == nil {
-			panic(fmt.Sprintf("discovery %q configured but client init failed, check env", r.baseCfg.Discovery.Used))
+		r.discovery = initDiscovery(ctx, &baseCfg)
+		if baseCfg.Discovery != nil && baseCfg.Discovery.Used != "" && r.discovery == nil {
+			panic(fmt.Sprintf("discovery %q configured but client init failed, check env", baseCfg.Discovery.Used))
 		}
 		// 初始化监控
-		r.metrics = initMetric(r.baseCtx, fullName, r.baseCfg.Svrs)
+		r.metrics = initMetric(r.baseCtx, fullName, baseCfg.Svrs)
 		logger.Gen(r.baseCtx, "app %s init over", fullName)
 	})
 }
