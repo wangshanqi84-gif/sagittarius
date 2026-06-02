@@ -493,7 +493,7 @@ func Initialize(ctx context.Context, info *registry.Service, opts ...Option) (co
 	return cfg, nil
 }
 
-func Custom(ctx context.Context, info *registry.Service, opts ...Option) (configuration.IConfig, error) {
+func Custom(ctx context.Context, namespace string, pd string, sn string, opts ...Option) (configuration.IConfig, error) {
 	o := option{}
 	for _, opt := range opts {
 		if opt != nil {
@@ -539,7 +539,7 @@ func Custom(ctx context.Context, info *registry.Service, opts ...Option) (config
 		if password != "" {
 			ncopts = append(ncopts, nacos.WithPassword(password))
 		}
-		cfg = cfgNacos.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, ncopts...)
+		cfg = cfgNacos.NewConfigClient(ctx, namespace, pd, sn, format, ncopts...)
 	case "etcd":
 		eps, userName, password, dailTimeout := env.GetEtcdEnv()
 		if eps == "" {
@@ -552,7 +552,7 @@ func Custom(ctx context.Context, info *registry.Service, opts ...Option) (config
 			etcd.Password(password),
 			etcd.DialTimeout(dailTimeout),
 		}
-		cfg = cfgEtcd.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, edopts...)
+		cfg = cfgEtcd.NewConfigClient(ctx, namespace, pd, sn, format, edopts...)
 	case "file":
 		cfg = file.NewConfigClient(ctx, format)
 	}

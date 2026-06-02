@@ -67,7 +67,11 @@ func (r *router) Service() *registry.Service {
 }
 
 func (r *router) ConfigClient() (configuration.IConfig, error) {
-	return config.Custom(r.baseCtx, r.info)
+	return config.Custom(r.baseCtx, r.info.Namespace, r.info.Product, r.info.ServiceName)
+}
+
+func (r *router) ConfigClientWithNamespace(namespace string) (configuration.IConfig, error) {
+	return config.Custom(r.baseCtx, namespace, r.info.Product, r.info.ServiceName)
 }
 
 var (
