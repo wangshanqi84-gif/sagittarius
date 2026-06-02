@@ -105,3 +105,22 @@ func Cause(err error, lang string) *Error {
 	}
 	return New(UnknownCode, UnknownErrorMessage)
 }
+
+func CauseWithDefault(err error, lang string, defCode int, defMessage string) *Error {
+	type causer interface {
+		Cause() error
+	}
+
+	for err != nil {
+		cause, ok := err.(causer)
+		if !ok {
+			break
+		}
+		err = cause.Cause()
+	}
+	if _, ok := err.(*Error); ok {
+		e := err.(*Error)
+		return New(e.code, e.langMessage(lang))
+	}
+	return New(defCode, defMessage)
+}
