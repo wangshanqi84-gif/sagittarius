@@ -27,8 +27,11 @@ func mustServerPort(cfg *config.ServiceConfig, proto string) int {
 	return svr.Port
 }
 
-func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
-	cfg := app.Router().Config()
+func InitRPCServer(opts ...rpcSrv.Option) (*rpcSrv.Server, error) {
+	cfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
 	// 初始化server
 	// 找到rpc配置
 	port := mustServerPort(cfg, registry.ProtoRPC)
@@ -53,11 +56,14 @@ func InitRPCServer(opts ...rpcSrv.Option) *rpcSrv.Server {
 			logger.Gen(app.Router().Ctx(), "init rpc server metrics error:%v", err)
 		}
 	}()
-	return srv
+	return srv, nil
 }
 
-func InitWebSocketServer(opts ...wsSrv.Option) *wsSrv.Engine {
-	cfg := app.Router().Config()
+func InitWebSocketServer(opts ...wsSrv.Option) (*wsSrv.Engine, error) {
+	cfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
 	// 初始化server
 	// 找到websocket配置
 	opts = append(opts, wsSrv.Port(fmt.Sprintf("%d", mustServerPort(cfg, registry.ProtoWebSocket))))
@@ -73,11 +79,14 @@ func InitWebSocketServer(opts ...wsSrv.Option) *wsSrv.Engine {
 		wsSrv.TracingHandler(app.Router().Tracer()),
 		wsSrv.LogHandler(logger.GetAccess(), !cfg.AccessRequestDisable),
 	)
-	return srv
+	return srv, nil
 }
 
-func InitSocketIOServer(opts ...ioSrv.Option) *ioSrv.Engine {
-	cfg := app.Router().Config()
+func InitSocketIOServer(opts ...ioSrv.Option) (*ioSrv.Engine, error) {
+	cfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
 	// 初始化server
 	// 找到rpc配置
 	opts = append(opts, ioSrv.Port(fmt.Sprintf("%d", mustServerPort(cfg, registry.ProtoSocketIO))))
@@ -89,11 +98,14 @@ func InitSocketIOServer(opts ...ioSrv.Option) *ioSrv.Engine {
 		ioSrv.WithLangHandler(),
 		ioSrv.LogHandler(logger.GetAccess(), !cfg.AccessRequestDisable),
 	)
-	return srv
+	return srv, nil
 }
 
-func InitHttpServer(opts ...httpSrv.Option) *httpSrv.Engine {
-	cfg := app.Router().Config()
+func InitHttpServer(opts ...httpSrv.Option) (*httpSrv.Engine, error) {
+	cfg, err := app.Router().Config()
+	if err != nil {
+		return nil, err
+	}
 	// 初始化server
 	// 找到rpc配置
 	opts = append(opts, httpSrv.Addr(fmt.Sprintf(":%d", mustServerPort(cfg, registry.ProtoHTTP))))
@@ -105,5 +117,5 @@ func InitHttpServer(opts ...httpSrv.Option) *httpSrv.Engine {
 		httpSrv.WithLangHandler(),
 		httpSrv.SyncTimeoutHandler(logger.GetLogger()),
 	)
-	return srv
+	return srv, nil
 }
