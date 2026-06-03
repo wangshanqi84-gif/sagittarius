@@ -12,12 +12,12 @@ import (
 	"github.com/wangshanqi84-gif/sagittarius/app/config"
 	httpClient "github.com/wangshanqi84-gif/sagittarius/cores/http/client"
 	rpcClient "github.com/wangshanqi84-gif/sagittarius/cores/rpc/client"
+	"github.com/wangshanqi84-gif/sagittarius/db"
 	"github.com/wangshanqi84-gif/sagittarius/logger"
 	"github.com/wangshanqi84-gif/sagittarius/mq/kafka"
 	kfkCore "github.com/wangshanqi84-gif/sagittarius/mq/kafka/core"
 	"github.com/wangshanqi84-gif/sagittarius/mq/rocket/consumer"
 	"github.com/wangshanqi84-gif/sagittarius/mq/rocket/producer"
-	"github.com/wangshanqi84-gif/sagittarius/mysql"
 	"github.com/wangshanqi84-gif/sagittarius/redis"
 
 	"github.com/apache/rocketmq-client-go/v2/primitive"
@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	_sqlClient      = sync.Map{}
+	_dbClient       = sync.Map{}
 	_redisClient    = sync.Map{}
 	_client         = sync.Map{}
 	_rocketProducer = sync.Map{}
@@ -36,7 +36,7 @@ var (
 	_kafkaProducer  = sync.Map{}
 	_kafkaConsumer  = sync.Map{}
 
-	_sqlMutex            = sync.Mutex{}
+	_dbMutex             = sync.Mutex{}
 	_redisMutex          = sync.Mutex{}
 	_clientMutex         = sync.Mutex{}
 	_rocketProducerMutex = sync.Mutex{}
@@ -45,12 +45,12 @@ var (
 	_kafkaConsumerMutex  = sync.Mutex{}
 )
 
-// InitSqlClient 初始化mysql客户端
-func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
-	_sqlMutex.Lock()
-	defer _sqlMutex.Unlock()
-	if c, has := _sqlClient.Load(name); has {
-		return c.(*mysql.Client), nil
+// InitDBClient 初始化db客户端
+func InitDBClient(name string, opts ...db.Option) (*db.Client, error) {
+	_dbMutex.Lock()
+	defer _dbMutex.Unlock()
+	if c, has := _dbClient.Load(name); has {
+		return c.(*db.Client), nil
 	}
 	baseCfg, err := app.Router().Config()
 	if err != nil {
@@ -58,83 +58,86 @@ func InitSqlClient(name string, opts ...mysql.Option) (*mysql.Client, error) {
 	}
 	cfg := baseCfg.GetDatabase(name)
 	if cfg == nil {
-		return nil, errors.New(fmt.Sprintf("app init sql client, config is nil, name:%s", name))
+		return nil, errors.New(fmt.Sprintf("app init db client, config is nil, name:%s", name))
 	}
 	if cfg.Master == "" {
-		return nil, errors.New(fmt.Sprintf("app init sql client, master is nil, name:%s", name))
+		return nil, errors.New(fmt.Sprintf("app init db client, master is nil, name:%s", name))
 	}
 	if cfg.MaxIdle > 0 {
-		opts = append(opts, mysql.MaxIdle(cfg.MaxIdle))
+		opts = append(opts, db.MaxIdle(cfg.MaxIdle))
 	}
 	if cfg.MaxOpen > 0 {
-		opts = append(opts, mysql.MaxOpen(cfg.MaxOpen))
+		opts = append(opts, db.MaxOpen(cfg.MaxOpen))
 	}
 	if cfg.MaxLifeTime != "" {
 		td, err := time.ParseDuration(cfg.MaxLifeTime)
 		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxlifetime, value:%s", cfg.MaxLifeTime))
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init db client, config maxlifetime, value:%s", cfg.MaxLifeTime))
 		}
-		opts = append(opts, mysql.MaxLifeTime(td))
+		opts = append(opts, db.MaxLifeTime(td))
 	}
 	if cfg.MaxIdleTime != "" {
 		td, err := time.ParseDuration(cfg.MaxIdleTime)
 		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxidletime, value:%s", cfg.MaxIdleTime))
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init db client, config maxidletime, value:%s", cfg.MaxIdleTime))
 		}
-		opts = append(opts, mysql.MaxIdleTime(td))
+		opts = append(opts, db.MaxIdleTime(td))
 	}
-	opts = append(opts, mysql.Logger(logger.GetLogger()))
-	c, err := mysql.NewClient(cfg.Master, cfg.Slaves, opts...)
+	if cfg.Driver != "" {
+		opts = append(opts, db.DriverName(cfg.Driver))
+	}
+	opts = append(opts, db.Logger(logger.GetLogger()))
+	c, err := db.NewClient(cfg.Master, cfg.Slaves, opts...)
 	if err != nil {
 		return nil, err
 	}
-	_sqlClient.Store(name, c)
+	_dbClient.Store(name, c)
 	return c, nil
 }
 
-// InitSqlClientWithConfig 初始化mysql客户端
-func InitSqlClientWithConfig(cfg *config.DatabaseConfig) (*mysql.Client, error) {
+// InitDBClientWithConfig 初始化mysql客户端
+func InitDBClientWithConfig(cfg *config.DatabaseConfig) (*db.Client, error) {
 	if cfg == nil {
-		return nil, errors.New("app init sql client, config is nil")
+		return nil, errors.New("app init db client, config is nil")
 	}
 	if cfg.Name == "" {
-		return nil, errors.New("app init sql client, name is empty")
+		return nil, errors.New("app init db client, name is empty")
 	}
-	_sqlMutex.Lock()
-	defer _sqlMutex.Unlock()
-	if c, has := _sqlClient.Load(cfg.Name); has {
-		return c.(*mysql.Client), nil
+	_dbMutex.Lock()
+	defer _dbMutex.Unlock()
+	if c, has := _dbClient.Load(cfg.Name); has {
+		return c.(*db.Client), nil
 	}
 	if cfg.Master == "" {
-		return nil, errors.New(fmt.Sprintf("app init sql client, master is nil, name:%s", cfg.Name))
+		return nil, errors.New(fmt.Sprintf("app init db client, master is nil, name:%s", cfg.Name))
 	}
-	var opts []mysql.Option
+	var opts []db.Option
 	if cfg.MaxIdle > 0 {
-		opts = append(opts, mysql.MaxIdle(cfg.MaxIdle))
+		opts = append(opts, db.MaxIdle(cfg.MaxIdle))
 	}
 	if cfg.MaxOpen > 0 {
-		opts = append(opts, mysql.MaxOpen(cfg.MaxOpen))
+		opts = append(opts, db.MaxOpen(cfg.MaxOpen))
 	}
 	if cfg.MaxLifeTime != "" {
 		td, err := time.ParseDuration(cfg.MaxLifeTime)
 		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxlifetime, value:%s", cfg.MaxLifeTime))
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init db client, config maxlifetime, value:%s", cfg.MaxLifeTime))
 		}
-		opts = append(opts, mysql.MaxLifeTime(td))
+		opts = append(opts, db.MaxLifeTime(td))
 	}
 	if cfg.MaxIdleTime != "" {
 		td, err := time.ParseDuration(cfg.MaxIdleTime)
 		if err != nil {
-			return nil, errors.WithMessage(err, fmt.Sprintf("app init sql client, config maxidletime, value:%s", cfg.MaxIdleTime))
+			return nil, errors.WithMessage(err, fmt.Sprintf("app init db client, config maxidletime, value:%s", cfg.MaxIdleTime))
 		}
-		opts = append(opts, mysql.MaxIdleTime(td))
+		opts = append(opts, db.MaxIdleTime(td))
 	}
-	opts = append(opts, mysql.Logger(logger.GetLogger()))
-	c, err := mysql.NewClient(cfg.Master, cfg.Slaves, opts...)
+	opts = append(opts, db.Logger(logger.GetLogger()))
+	c, err := db.NewClient(cfg.Master, cfg.Slaves, opts...)
 	if err != nil {
 		return nil, err
 	}
-	_sqlClient.Store(cfg.Name, c)
+	_dbClient.Store(cfg.Name, c)
 	return c, nil
 }
 

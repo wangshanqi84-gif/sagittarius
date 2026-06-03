@@ -1,4 +1,4 @@
-package mysql
+package db
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
 
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/plugin/dbresolver"
 )
@@ -63,8 +64,17 @@ func MaxLifeTime(maxLifetime time.Duration) Option {
 	}
 }
 
+// DriverName
+// 设置db类型
+func DriverName(driverName string) Option {
+	return func(c *Client) {
+		c.driverName = driverName
+	}
+}
+
 type Client struct {
 	sqlDB       *sql.DB
+	driverName  string
 	resolver    *dbresolver.DBResolver
 	db          *gorm.DB
 	gormCfg     *gorm.Config
@@ -77,27 +87,43 @@ type Client struct {
 
 func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	// 初始化
-	c := new(Client)
-	// 链接
-	sqlDB, err := sql.Open("mysql", master)
-	if err != nil {
-		return nil, err
+	c := &Client{
+		driverName: "db",
 	}
-	c.sqlDB = sqlDB
 	// option 执行
 	for _, opt := range opts {
 		if opt != nil {
 			opt(c)
 		}
 	}
+	// driverName 检查
+	if c.driverName != "" {
+		if c.driverName != "db" && c.driverName != "postgres" {
+			return nil, errors.New(`driverName must be "db" or "postgres"`)
+		}
+	}
+	// 链接
+	sqlDB, err := sql.Open(c.driverName, master)
+	if err != nil {
+		return nil, err
+	}
+	c.sqlDB = sqlDB
 	// 设置打开数据库连接的最大数量
 	if c.maxOpen == 0 {
-		c.maxOpen = DefaultMaxOpen
+		if c.driverName == "postgres" {
+			c.maxOpen = DefaultPostgresMaxOpen
+		} else {
+			c.maxOpen = DefaultMysqlMaxOpen
+		}
 	}
 	c.sqlDB.SetMaxOpenConns(c.maxOpen)
 	// 设置空闲连接池中连接的最大数量
 	if c.maxIdle == 0 {
-		c.maxIdle = DefaultMaxIdle
+		if c.driverName == "postgres" {
+			c.maxIdle = DefaultPostgresMaxIdle
+		} else {
+			c.maxIdle = DefaultMysqlMaxIdle
+		}
 	}
 	sqlDB.SetMaxIdleConns(c.maxIdle)
 	// 设置连接可复用的最大时间
@@ -114,7 +140,7 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	if len(slave) > 0 {
 		var dail []gorm.Dialector
 		for _, dns := range slave {
-			dail = append(dail, mysql.Open(dns))
+			dail = append(dail, c.createDial(dns))
 		}
 		resolver := dbresolver.Register(dbresolver.Config{
 			Replicas: dail,
@@ -127,9 +153,18 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	return c, nil
 }
 
+func (c *Client) createDial(dsn string) gorm.Dialector {
+	switch c.driverName {
+	case "postgres":
+		return postgres.Open(dsn)
+	default:
+		return mysql.Open(dsn)
+	}
+}
+
 func (c *Client) open() error {
 	if c.sqlDB == nil {
-		return errors.New("init mysql client error, no connection")
+		return errors.New("init db client error, no connection")
 	}
 	if c.gormCfg == nil {
 		c.gormCfg = &gorm.Config{}
@@ -139,11 +174,17 @@ func (c *Client) open() error {
 			Logger: c.logger,
 		}
 	}
-	db, err := gorm.Open(mysql.New(mysql.Config{
-		Conn: c.sqlDB,
-	}), c.gormCfg)
-	if err != nil {
-		return err
+	var db *gorm.DB
+	var err error
+	switch c.driverName {
+	case "postgres":
+		db, err = gorm.Open(postgres.New(postgres.Config{
+			Conn: c.sqlDB,
+		}), c.gormCfg)
+	default:
+		db, err = gorm.Open(mysql.New(mysql.Config{
+			Conn: c.sqlDB,
+		}), c.gormCfg)
 	}
 	if c.resolver != nil {
 		err = db.Use(c.resolver)

@@ -459,13 +459,13 @@ package db
 
 import (
     "github.com/wangshanqi84-gif/sagittarius/app/proxy"
-    "github.com/wangshanqi84-gif/sagittarius/mysql"
+    "github.com/wangshanqi84-gif/sagittarius/db"
 )
 
 const dbName = "xxxxx"
 
 type GameDB struct {
-    sql *mysql.Client
+    sql *db.Client
 }
 
 func New() (*GameDB, error) {

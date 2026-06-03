@@ -63,6 +63,8 @@ type DiscoveryConfig struct {
 type DatabaseConfig struct {
 	// 名称
 	Name string `yaml:"name" json:"name" xml:"name"`
+	// driver
+	Driver string `yaml:"driver" json:"driver" xml:"driver"`
 	// 主库dns
 	Master string `yaml:"master" json:"master" xml:"master"`
 	// 从库dns
