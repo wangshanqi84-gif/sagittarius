@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	redisgo "github.com/go-redis/redis/v8"
@@ -231,4 +232,19 @@ func (c *Client) NewMutexWithExtend(name string, expired time.Duration) *Mutex {
 		Mutex:  m,
 		extCh:  make(chan struct{}),
 	}
+}
+
+func (c *Client) GetDns() string {
+	var schema string
+	if c.model == typeCluster {
+		schema = "rediscluster://"
+	} else {
+		schema = "redis://"
+	}
+	dns := schema
+	if c.username != "" && c.password != "" {
+		dns += fmt.Sprintf("%s:%s@", c.username, c.password)
+	}
+	dns += c.addrs[0]
+	return dns
 }
