@@ -160,11 +160,12 @@ func (c *Context) ParseHeader(data interface{}) {
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		scheme := field.Tag.Get("schema")
-		if scheme == "" {
-			scheme = field.Name
+		schema := field.Tag.Get("schema")
+		if schema == "" {
+			// 如果没有schema标签则尝试使用字段名
+			schema = field.Name
 		}
-		value := c.r.Header.Get(scheme)
+		value := c.r.Header.Get(schema)
 		if value != "" {
 			v.Field(i).SetString(value)
 		}
