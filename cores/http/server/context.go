@@ -162,7 +162,7 @@ func (c *Context) ParseHeader(data interface{}) {
 		field := t.Field(i)
 		scheme := field.Tag.Get("schema")
 		if scheme == "" {
-			continue
+			scheme = field.Name
 		}
 		value := c.r.Header.Get(scheme)
 		if value != "" {
