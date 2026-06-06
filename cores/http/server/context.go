@@ -154,13 +154,13 @@ func (c *Context) Next() {
 	}
 }
 
-func (c *Context) ParseHeaderAtom(atom interface{}) {
-	t := reflect.TypeOf(atom).Elem()
-	v := reflect.ValueOf(atom).Elem()
+func (c *Context) ParseHeader(data interface{}) {
+	t := reflect.TypeOf(data).Elem()
+	v := reflect.ValueOf(data).Elem()
 
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		scheme := field.Tag.Get("scheme")
+		scheme := field.Tag.Get("schema")
 		if scheme == "" {
 			continue
 		}
