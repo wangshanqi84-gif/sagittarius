@@ -171,16 +171,10 @@ func (c *Context) ParseHeader(data interface{}) {
 	}
 }
 
-func (c *Context) Bind(atom interface{}, v interface{}) error {
+func (c *Context) Bind(v interface{}) error {
 	// 解析query
 	queryBinder := _binders["query"]
 	if queryBinder != nil {
-		if atom != nil {
-			err := queryBinder.Unmarshal(c, atom)
-			if err != nil {
-				return err
-			}
-		}
 		if v != nil {
 			err := queryBinder.Unmarshal(c, v)
 			if err != nil {
