@@ -2,8 +2,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
@@ -41,7 +41,7 @@ func MaxIdle(maxIdle int) Option {
 }
 
 // Logger
-// 设置空闲连接池中连接的最大数量
+// 设置内部日志记录器
 func Logger(lgr *logger.Logger) Option {
 	return func(c *Client) {
 		c.logger = lgr
@@ -73,7 +73,6 @@ func DriverName(driverName string) Option {
 }
 
 type Client struct {
-	sqlDB       *sql.DB
 	driverName  string
 	resolver    *dbresolver.DBResolver
 	db          *gorm.DB
@@ -97,17 +96,29 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 		}
 	}
 	// driverName 检查
-	if c.driverName != "" {
-		if c.driverName != "mysql" && c.driverName != "postgres" {
-			return nil, errors.New(`driverName must be "mysql" or "postgres"`)
+	if c.driverName != "mysql" && c.driverName != "postgres" {
+		return nil, errors.New(`driverName must be "mysql" or "postgres"`)
+	}
+	// 读写分离配置
+	if len(slave) > 0 {
+		var dail []gorm.Dialector
+		for _, dns := range slave {
+			dail = append(dail, c.createDial(dns))
 		}
+		resolver := dbresolver.Register(dbresolver.Config{
+			Sources:  []gorm.Dialector{c.createDial(master)},
+			Replicas: dail,
+		})
+		c.resolver = resolver
 	}
 	// 链接
-	sqlDB, err := sql.Open(c.driverName, master)
+	if err := c.open(master); err != nil {
+		return nil, err
+	}
+	sqlDB, err := c.db.DB()
 	if err != nil {
 		return nil, err
 	}
-	c.sqlDB = sqlDB
 	// 设置打开数据库连接的最大数量
 	if c.maxOpen == 0 {
 		if c.driverName == "postgres" {
@@ -116,7 +127,7 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 			c.maxOpen = DefaultMysqlMaxOpen
 		}
 	}
-	c.sqlDB.SetMaxOpenConns(c.maxOpen)
+	sqlDB.SetMaxOpenConns(c.maxOpen)
 	// 设置空闲连接池中连接的最大数量
 	if c.maxIdle == 0 {
 		if c.driverName == "postgres" {
@@ -136,19 +147,8 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 		c.maxIdleTime = DefaultIdleTime
 	}
 	sqlDB.SetConnMaxIdleTime(c.maxIdleTime)
-	// 读写分离配置
-	if len(slave) > 0 {
-		var dail []gorm.Dialector
-		for _, dns := range slave {
-			dail = append(dail, c.createDial(dns))
-		}
-		resolver := dbresolver.Register(dbresolver.Config{
-			Replicas: dail,
-		})
-		c.resolver = resolver
-	}
-	if err = c.open(); err != nil {
-		return nil, err
+	if err = sqlDB.Ping(); err != nil {
+		return nil, errors.New(fmt.Sprintf("database ping failed: %v", err))
 	}
 	return c, nil
 }
@@ -162,10 +162,7 @@ func (c *Client) createDial(dsn string) gorm.Dialector {
 	}
 }
 
-func (c *Client) open() error {
-	if c.sqlDB == nil {
-		return errors.New("init db client error, no connection")
-	}
+func (c *Client) open(master string) error {
 	if c.gormCfg == nil {
 		c.gormCfg = &gorm.Config{}
 	}
@@ -178,13 +175,9 @@ func (c *Client) open() error {
 	var err error
 	switch c.driverName {
 	case "postgres":
-		db, err = gorm.Open(postgres.New(postgres.Config{
-			Conn: c.sqlDB,
-		}), c.gormCfg)
+		db, err = gorm.Open(postgres.Open(master), c.gormCfg)
 	default:
-		db, err = gorm.Open(mysql.New(mysql.Config{
-			Conn: c.sqlDB,
-		}), c.gormCfg)
+		db, err = gorm.Open(mysql.Open(master), c.gormCfg)
 	}
 	if err != nil {
 		return err
@@ -199,18 +192,28 @@ func (c *Client) open() error {
 	return nil
 }
 
+// DB 默认库(读写分离环境下会根据语句类型选择主库或者从库)
 func (c *Client) DB(ctx context.Context) *gorm.DB {
 	return c.db.WithContext(ctx)
 }
 
+// Master 强制指定主库(读写分离环境下可以通过Master方法将读操作指定到主库)
 func (c *Client) Master(ctx context.Context) *gorm.DB {
 	return c.db.WithContext(ctx).Clauses(dbresolver.Write)
 }
 
 func (c *Client) Ping() error {
-	return c.sqlDB.Ping()
+	db, err := c.db.DB()
+	if err != nil {
+		return err
+	}
+	return db.Ping()
 }
 
 func (c *Client) Close() error {
-	return c.sqlDB.Close()
+	db, err := c.db.DB()
+	if err != nil {
+		return err
+	}
+	return db.Close()
 }
