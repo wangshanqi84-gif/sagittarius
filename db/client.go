@@ -98,8 +98,8 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	}
 	// driverName 检查
 	if c.driverName != "" {
-		if c.driverName != "db" && c.driverName != "postgres" {
-			return nil, errors.New(`driverName must be "db" or "postgres"`)
+		if c.driverName != "mysql" && c.driverName != "postgres" {
+			return nil, errors.New(`driverName must be "mysql" or "postgres"`)
 		}
 	}
 	// 链接
