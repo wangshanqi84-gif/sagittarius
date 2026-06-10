@@ -2,7 +2,7 @@ package env
 
 // 服务基础环境变量
 // SGT_ENV_SERVICE 当前环境(测试/予发布/生产) testing:测试环境 默认testing
-// SGT_CONFIG_SOURCE 配置文件来源(目前支持nacos，etcd，file) 默认consul
+// SGT_CONFIG_SOURCE 配置文件来源(目前支持nacos，etcd，file) 默认nacos
 // SGT_CONFIG_FORMAT 配置文件格式(目前支持json，xml，yaml) 默认json
 // SGT_LOG_PATH 日志路径 默认为"./log"
 // SGT_PPROF_ENABLE 是否启用pprof true为启用 默认false

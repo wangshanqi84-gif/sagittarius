@@ -87,9 +87,7 @@ func WithPassword(password string) Option {
 
 func NewNamingClient(namespace string, product string, name string, opts ...Option) naming_client.INamingClient {
 	o := &options{
-		timeOut:  5000,
-		userName: "nacos",
-		password: "nacos",
+		timeOut: 5000,
 	}
 	for _, opt := range opts {
 		opt(o)
