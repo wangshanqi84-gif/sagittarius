@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"sync"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
@@ -61,7 +62,8 @@ func (cc *ConfigClient) LoadConfig(key string) error {
 		return err
 	}
 	if len(vs) == 0 {
-		return errors.New("config file does not exist")
+		return errors.New(fmt.Sprintf("config file does not exist, key:%s, env:%s",
+			key, env.GetRunEnv()))
 	}
 	param.OnChange = func(namespace, group, dataId, data string) {
 		cc.changeCh <- data
