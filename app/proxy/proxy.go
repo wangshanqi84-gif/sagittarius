@@ -132,6 +132,9 @@ func InitDBClientWithConfig(cfg *config.DatabaseConfig) (*db.Client, error) {
 		}
 		opts = append(opts, db.MaxIdleTime(td))
 	}
+	if cfg.Driver != "" {
+		opts = append(opts, db.DriverName(cfg.Driver))
+	}
 	opts = append(opts, db.Logger(logger.GetLogger()))
 	c, err := db.NewClient(cfg.Master, cfg.Slaves, opts...)
 	if err != nil {

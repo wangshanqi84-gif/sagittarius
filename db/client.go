@@ -88,7 +88,7 @@ type Client struct {
 func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	// 初始化
 	c := &Client{
-		driverName: "db",
+		driverName: "mysql",
 	}
 	// option 执行
 	for _, opt := range opts {
@@ -185,6 +185,9 @@ func (c *Client) open() error {
 		db, err = gorm.Open(mysql.New(mysql.Config{
 			Conn: c.sqlDB,
 		}), c.gormCfg)
+	}
+	if err != nil {
+		return err
 	}
 	if c.resolver != nil {
 		err = db.Use(c.resolver)
