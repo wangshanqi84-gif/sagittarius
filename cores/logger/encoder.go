@@ -15,7 +15,7 @@ type CustomJsonEncoder func(context.Context) (string, string)
 
 type LevelEncoder func(Level) string
 type TimeEncoder func(time.Time) string
-type CallerEncoder func() string
+type CallerEncoder func(deep int) string
 
 func defaultLevelEncoder(l Level) string {
 	if l.isNoneLevel() {
@@ -28,12 +28,12 @@ func defaultTimeEncoder(t time.Time) string {
 	return t.Format("2006-01-02 15:04:05.000")
 }
 
-func defaultCallEncoder() string {
+func defaultCallEncoder(deep int) string {
 	_, file, line, _ := runtime.Caller(4)
 
 	ss := strings.Split(file, "/")
-	if len(ss) > PathDeep {
-		ss = ss[len(ss)-PathDeep:]
+	if len(ss) > deep {
+		ss = ss[len(ss)-deep:]
 		file = "/" + strings.Join(ss, "/")
 	}
 	return fmt.Sprintf("%s:%d", file, line)

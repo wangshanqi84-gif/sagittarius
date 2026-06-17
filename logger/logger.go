@@ -25,7 +25,10 @@ var (
 func init() {
 	var opts []logger.Option
 	if env.GetEnv(env.SgtLogPath) != "" {
-		opts = append(opts, logger.SetPath(env.GetEnv(env.SgtLogPath)))
+		opts = append(opts,
+			logger.SetPath(env.GetEnv(env.SgtLogPath)),
+			logger.SetPathDeep(3),
+		)
 	}
 	gen = logger.New("gen", opts...)
 }
