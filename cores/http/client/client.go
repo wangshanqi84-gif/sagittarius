@@ -183,7 +183,8 @@ func createTransport(tlsCfg *tls.Config, opt *clientOptions) (http.RoundTripper,
 
 func createTLSConfig(opt *clientOptions) (*tls.Config, error) {
 	if opt.certFile == "" && opt.keyFile == "" && opt.caFile == "" && opt.serverName == "" {
-		return nil, nil
+		// 默认证书池
+		return &tls.Config{RootCAs: nil}, nil
 	}
 	tlsCfg := &tls.Config{
 		InsecureSkipVerify: false,
