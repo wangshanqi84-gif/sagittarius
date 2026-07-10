@@ -194,7 +194,7 @@ func createTLSConfig(opt *clientOptions) (*tls.Config, error) {
 	if opt.certFile != "" && opt.keyFile != "" {
 		cert, err := tls.LoadX509KeyPair(opt.certFile, opt.keyFile)
 		if err != nil {
-			return nil, errors.WithMessage(err, "| tls.LoadX509KeyPair")
+			return &tls.Config{RootCAs: nil}, errors.WithMessage(err, "| tls.LoadX509KeyPair")
 		}
 		tlsCfg.Certificates = []tls.Certificate{cert}
 	}
@@ -202,7 +202,7 @@ func createTLSConfig(opt *clientOptions) (*tls.Config, error) {
 	if opt.caFile != "" {
 		cert, err := os.ReadFile(opt.caFile)
 		if err != nil {
-			return nil, errors.WithMessage(err, "| os.ReadFile")
+			return &tls.Config{RootCAs: nil}, errors.WithMessage(err, "| os.ReadFile")
 		}
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(cert) {
@@ -231,9 +231,8 @@ func NewClient(ctx context.Context, opts ...Option) *Client {
 	tlsCfg, err := createTLSConfig(&options)
 	if err != nil {
 		log.Printf("create tls config, err:%v\n", err)
-		tlsCfg = nil
 	}
-	insecure := tlsCfg == nil
+	insecure := tlsCfg.RootCAs == nil
 	for idx := 0; idx < len(options.eps); idx++ {
 		if !strings.Contains(options.eps[idx], "://") {
 			if insecure {
