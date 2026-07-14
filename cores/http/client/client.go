@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -373,18 +374,31 @@ func (r *Req) makeRequest() (*http.Request, error) {
 	return req, nil
 }
 
-func (c *Client) Get(r *Req) (*http.Response, error) {
-	var (
-		err  error
-		resp *http.Response
-	)
-	r.method = http.MethodGet
-	// Send request
-	resp, _, err = c.do(r.ctx, r)
-	if err != nil {
-		return nil, err
+func FileFormRequest(ctx context.Context, uri string, file multipart.File, header *multipart.FileHeader) (*Req, []byte, error) {
+	headers := map[string]string{
+		"X-Filename":          header.Filename,
+		"X-File-Size":         fmt.Sprintf("%d", header.Size),
+		"Content-Type":        header.Header.Get("Content-Type"),
+		"Content-Disposition": fmt.Sprintf(`attachment; filename="%s"`, header.Filename),
 	}
-	return resp, err
+	if headers["Content-Type"] == "" {
+		headers["Content-Type"] = "application/octet-stream"
+	}
+	uri = "/" + strings.TrimLeft(uri, "/")
+	// 提取文件内容
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, nil, err
+	}
+	req := &Req{
+		ctx:        ctx,
+		url:        uri,
+		header:     http.Header{},
+		queryParam: url.Values{},
+		cookies:    make([]*http.Cookie, 0),
+	}
+	req.SetHeaders(headers)
+	return req, data, nil
 }
 
 func (c *Client) JsonGet(r *Req, respData interface{}) (*http.Response, error) {
