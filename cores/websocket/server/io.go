@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
 )
 
 type IHeader interface {
@@ -20,6 +22,7 @@ func Read(ctx context.Context, conn *Conn) (*Context, error) {
 	c.Build(ctx, conn)
 	// read message
 	mt, data, err := conn.c.ReadMessage()
+	log.Println(fmt.Sprintf("c.ReadMessage, mt:%v, data:%v, err:%v", mt, data, err))
 	if err != nil || mt == -1 {
 		if conn.server.connCloseHandler != nil {
 			conn.server.connCloseHandler(c)

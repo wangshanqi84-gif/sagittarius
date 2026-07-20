@@ -52,7 +52,6 @@ func (c *Conn) serve() {
 			}
 			ctx, err := Read(c.ctx, c)
 			if err != nil {
-				log.Println(fmt.Sprintf("websocket read message error:%v", err))
 				return
 			}
 			cores := c.server.findCore(ctx.header.(IHeader).MsgID())
