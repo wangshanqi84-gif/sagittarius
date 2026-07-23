@@ -139,6 +139,24 @@ func (e *Engine) handleHTTPRequest(c *Context) {
 	method := c.r.Method
 	path := c.r.URL.Path
 
+	// OPTIONS预检请求直接在这里处理
+	if method == http.MethodOptions {
+		origin := c.Request().Header.Get("Origin")
+		if origin != "" {
+			c.Writer().Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer().Header().Set("Access-Control-Allow-Methods",
+				"GET, POST, PUT, DELETE, PATCH, OPTIONS")
+			requestHeaders := c.Request().Header.Get("Access-Control-Request-Headers")
+			if requestHeaders != "" {
+				c.Writer().Header().Set("Access-Control-Allow-Headers", requestHeaders)
+			}
+			c.Writer().Header().Set("Access-Control-Allow-Credentials", "true")
+			c.Writer().Header().Set("Access-Control-Max-Age", "86400")
+		}
+		// OPTIONS请求返回
+		c.Writer().WriteHeader(http.StatusNoContent)
+		return
+	}
 	if e.tree[method] == nil {
 		_ = c.HttpError(404, "page not found!")
 		return
@@ -175,6 +193,7 @@ func (e *Engine) handleHTTPRequest(c *Context) {
 	}
 	// 提前解析body
 	ioBody := http.MaxBytesReader(c.Writer(), c.Request().Body, bodyMaxByte)
+	defer ioBody.Close()
 	data, err := io.ReadAll(ioBody)
 	if err != nil {
 		_ = c.HttpError(499, fmt.Sprintf("request body decode error:%v", err.Error()))
