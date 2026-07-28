@@ -36,7 +36,7 @@ func PanicHandler(lgr *logger.Logger) core {
 				hub.CaptureException(errors.New(string(buf[:])))
 				hub.Flush(5 * time.Second)
 
-				_ = c.JsonErr(gErrors.New(gErrors.UnknownCode, gErrors.UnknownErrorMessage))
+				_ = c.HttpError(gErrors.UnknownCode, gErrors.UnknownErrorMessage)
 				c.Abort()
 			}
 		}()
