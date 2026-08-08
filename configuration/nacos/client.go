@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log"
+	"runtime/debug"
 	"sync"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
@@ -24,12 +26,14 @@ type ConfigClient struct {
 	namespace string
 	product   string
 	name      string
+	key       string
 	cfgValue  string
+	watcher   func()
 	mu        sync.RWMutex
 }
 
 func NewConfigClient(ctx context.Context, namespace string, product string,
-	name string, format string, options ...nacos.Option) *ConfigClient {
+	name string, key string, format string, options ...nacos.Option) *ConfigClient {
 	return &ConfigClient{
 		ctx:       ctx,
 		cli:       nacos.NewClient(namespace, product, name, options...),
@@ -37,16 +41,22 @@ func NewConfigClient(ctx context.Context, namespace string, product string,
 		format:    format,
 		namespace: namespace,
 		product:   product,
+		watcher:   nil,
 		name:      name,
+		key:       key,
 	}
 }
 
-func (cc *ConfigClient) LoadConfig(key string) error {
+func (cc *ConfigClient) AddWatcher(watcher func()) {
+	cc.watcher = watcher
+}
+
+func (cc *ConfigClient) LoadConfig() error {
 	if cc.cli == nil {
 		return nil
 	}
 	param := vo.ConfigParam{
-		DataId: key,
+		DataId: cc.key,
 		Group:  env.GetRunEnv(),
 	}
 	switch cc.format {
@@ -63,7 +73,7 @@ func (cc *ConfigClient) LoadConfig(key string) error {
 	}
 	if len(vs) == 0 {
 		return errors.New(fmt.Sprintf("config file does not exist, key:%s, env:%s",
-			key, env.GetRunEnv()))
+			cc.key, env.GetRunEnv()))
 	}
 	param.OnChange = func(namespace, group, dataId, data string) {
 		cc.changeCh <- data
@@ -84,6 +94,16 @@ func (cc *ConfigClient) LoadConfig(key string) error {
 				cc.mu.Lock()
 				cc.cfgValue = s
 				cc.mu.Unlock()
+				go func() {
+					defer func() {
+						if recovered := recover(); recovered != nil {
+							log.Println(fmt.Sprintf(string(debug.Stack())))
+						}
+					}()
+					if cc.watcher != nil {
+						cc.watcher()
+					}
+				}()
 			}
 		}
 	}()

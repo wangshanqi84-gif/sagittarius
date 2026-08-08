@@ -445,7 +445,6 @@ func Initialize(ctx context.Context, info *registry.Service, opts ...Option) (co
 		format = defaultConfigFormat
 	}
 	var cfg configuration.IConfig
-	var name string
 	switch source {
 	case "nacos":
 		path, accessKey, secretKey, userName, password := env.GetNacosEnv()
@@ -469,8 +468,8 @@ func Initialize(ctx context.Context, info *registry.Service, opts ...Option) (co
 		if password != "" {
 			ncopts = append(ncopts, nacos.WithPassword(password))
 		}
-		cfg = cfgNacos.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, ncopts...)
-		name = fmt.Sprintf("%s.%s.config", info.Product, info.ServiceName)
+		keyName := fmt.Sprintf("%s.%s.config", info.Product, info.ServiceName)
+		cfg = cfgNacos.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, keyName, format, ncopts...)
 	case "etcd":
 		eps, userName, password, dailTimeout := env.GetEtcdEnv()
 		if eps == "" {
@@ -483,19 +482,19 @@ func Initialize(ctx context.Context, info *registry.Service, opts ...Option) (co
 			etcd.Password(password),
 			etcd.DialTimeout(dailTimeout),
 		}
-		cfg = cfgEtcd.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, format, edopts...)
-		name = fmt.Sprintf("%s/%s/config", info.Product, info.ServiceName)
+		keyName := fmt.Sprintf("%s/%s/config", info.Product, info.ServiceName)
+		cfg = cfgEtcd.NewConfigClient(ctx, info.Namespace, info.Product, info.ServiceName, keyName, format, edopts...)
 	case "file":
-		cfg = file.NewConfigClient(ctx, format)
-		name = o.path
+		keyName := o.path
+		cfg = file.NewConfigClient(ctx, keyName, format)
 	}
-	if err = cfg.LoadConfig(name); err != nil {
+	if err = cfg.LoadConfig(); err != nil {
 		return nil, err
 	}
 	return cfg, nil
 }
 
-func Custom(ctx context.Context, namespace string, pd string, sn string, opts ...Option) (configuration.IConfig, error) {
+func Custom(ctx context.Context, namespace string, pd string, sn string, key string, opts ...Option) (configuration.IConfig, error) {
 	o := option{}
 	for _, opt := range opts {
 		if opt != nil {
@@ -541,7 +540,7 @@ func Custom(ctx context.Context, namespace string, pd string, sn string, opts ..
 		if password != "" {
 			ncopts = append(ncopts, nacos.WithPassword(password))
 		}
-		cfg = cfgNacos.NewConfigClient(ctx, namespace, pd, sn, format, ncopts...)
+		cfg = cfgNacos.NewConfigClient(ctx, namespace, pd, sn, key, format, ncopts...)
 	case "etcd":
 		eps, userName, password, dailTimeout := env.GetEtcdEnv()
 		if eps == "" {
@@ -554,9 +553,9 @@ func Custom(ctx context.Context, namespace string, pd string, sn string, opts ..
 			etcd.Password(password),
 			etcd.DialTimeout(dailTimeout),
 		}
-		cfg = cfgEtcd.NewConfigClient(ctx, namespace, pd, sn, format, edopts...)
+		cfg = cfgEtcd.NewConfigClient(ctx, namespace, pd, sn, key, format, edopts...)
 	case "file":
-		cfg = file.NewConfigClient(ctx, format)
+		cfg = file.NewConfigClient(ctx, key, format)
 	}
 	return cfg, nil
 }

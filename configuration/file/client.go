@@ -12,19 +12,21 @@ import (
 
 type ConfigClient struct {
 	ctx      context.Context
+	key      string
 	format   string
 	cfgValue string
 }
 
-func NewConfigClient(ctx context.Context, format string) *ConfigClient {
+func NewConfigClient(ctx context.Context, key string, format string) *ConfigClient {
 	return &ConfigClient{
 		ctx:    ctx,
+		key:    key,
 		format: format,
 	}
 }
 
-func (cc *ConfigClient) LoadConfig(key string) error {
-	bs, err := os.ReadFile(key)
+func (cc *ConfigClient) LoadConfig() error {
+	bs, err := os.ReadFile(cc.key)
 	if err != nil {
 		return err
 	}

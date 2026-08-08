@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -22,12 +24,14 @@ type ConfigClient struct {
 	namespace string
 	product   string
 	name      string
+	key       string
 	cfgValue  string
+	watcher   func()
 	mu        sync.RWMutex
 }
 
 func NewConfigClient(ctx context.Context, namespace string, product string,
-	name string, format string, options ...etcd.Option) *ConfigClient {
+	name string, key string, format string, options ...etcd.Option) *ConfigClient {
 	return &ConfigClient{
 		ctx:       ctx,
 		cli:       etcd.NewEtcdClient(options...),
@@ -35,12 +39,18 @@ func NewConfigClient(ctx context.Context, namespace string, product string,
 		namespace: namespace,
 		product:   product,
 		name:      name,
+		key:       key,
+		watcher:   nil,
 	}
 }
 
-func (cc *ConfigClient) LoadConfig(key string) error {
+func (cc *ConfigClient) AddWatcher(watcher func()) {
+	cc.watcher = watcher
+}
+
+func (cc *ConfigClient) LoadConfig() error {
 	basePath := fmt.Sprintf("%s/%s", cc.namespace, env.GetRunEnv())
-	fullKey := basePath + "/" + strings.TrimLeft(key, "/")
+	fullKey := basePath + "/" + strings.TrimLeft(cc.key, "/")
 	resp, err := cc.cli.Get(cc.ctx, fullKey)
 	if err != nil {
 		return err
@@ -68,10 +78,30 @@ func (cc *ConfigClient) LoadConfig(key string) error {
 						cc.mu.Lock()
 						cc.cfgValue = string(resp.Kvs[0].Value)
 						cc.mu.Unlock()
+						go func() {
+							defer func() {
+								if recovered := recover(); recovered != nil {
+									log.Println(fmt.Sprintf(string(debug.Stack())))
+								}
+							}()
+							if cc.watcher != nil {
+								cc.watcher()
+							}
+						}()
 					case clientv3.EventTypeDelete:
 						cc.mu.Lock()
 						cc.cfgValue = ""
 						cc.mu.Unlock()
+						go func() {
+							defer func() {
+								if recovered := recover(); recovered != nil {
+									log.Println(fmt.Sprintf(string(debug.Stack())))
+								}
+							}()
+							if cc.watcher != nil {
+								cc.watcher()
+							}
+						}()
 					}
 				}
 			}
