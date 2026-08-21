@@ -14,7 +14,7 @@ type Context struct {
 	ctx           context.Context
 	conn          *Conn
 	cores         []core
-	header        interface{}
+	header        IHeader
 	data          []byte
 	index         int8
 	disableAccess bool
@@ -93,7 +93,7 @@ func (c *Context) Write(id int32, data []byte) error {
 	return Write(c.ctx, id, data, c.conn)
 }
 
-func (c *Context) Header() interface{} {
+func (c *Context) Header() IHeader {
 	return c.header
 }
 

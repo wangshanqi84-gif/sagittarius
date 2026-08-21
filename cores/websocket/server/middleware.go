@@ -40,7 +40,7 @@ func PanicHandler(lgr *logger.Logger) core {
 
 func TracingHandler(tracer opentracing.Tracer) core {
 	return func(c *Context) {
-		buffer := bytes.NewBuffer(c.Header().(IHeader).Trace())
+		buffer := bytes.NewBuffer(c.Header().Trace())
 		spanContext, err := tracer.Extract(
 			opentracing.Binary,
 			buffer,
@@ -53,7 +53,7 @@ func TracingHandler(tracer opentracing.Tracer) core {
 				opentracing.Tag{Key: string(ext.Component), Value: "websocket Server"})
 		}
 		span := tracer.StartSpan(
-			fmt.Sprintf("%d", c.Header().(IHeader).MsgID()),
+			fmt.Sprintf("%d", c.Header().MsgID()),
 			opts...,
 		)
 		defer span.Finish()
@@ -79,7 +79,7 @@ func LogHandler(lgr *logger.Logger, requestEnable bool) core {
 			}
 			logData := map[string]interface{}{
 				"Peer":      td,
-				"MessageID": c.Header().(IHeader).MsgID(),
+				"MessageID": c.Header().MsgID(),
 				"Cost":      fmt.Sprintf("%dms", time.Now().UnixMilli()-start),
 			}
 			if requestEnable {

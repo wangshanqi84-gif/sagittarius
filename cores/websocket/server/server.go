@@ -53,6 +53,9 @@ func (c *Conn) serve() {
 			ctx, err := Read(c.ctx, c)
 			if err != nil {
 				log.Println(fmt.Sprintf("websocket read message error:%v", err))
+				if ctx != nil {
+					c.server.pool.Put(ctx.reset())
+				}
 				return
 			}
 			cores := c.server.findCore(ctx.header.(IHeader).MsgID())
@@ -180,18 +183,22 @@ func (s *Engine) Start(ctx context.Context) error {
 		}
 		go func(c *Conn) {
 			s.trackConn(c, true)
-			defer s.trackConn(c, false)
+			defer func() {
+				s.trackConn(c, false)
+				c.cancel()
+				close(c.msgCh)
+			}()
 
-			cn.serve()
+			c.serve()
 
 			if len(s.onDisconnect) > 0 {
 				for _, f := range s.onDisconnect {
-					f(&cn)
+					f(c)
 				}
 			}
 		}(&cn)
 		go func(c *Conn) {
-			cn.write()
+			c.write()
 		}(&cn)
 
 		if len(s.onConnect) > 0 {
