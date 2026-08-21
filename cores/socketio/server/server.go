@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime"
 	"sync"
 	"time"
 
@@ -103,9 +104,10 @@ func (s *Engine) OnEvent(namespace string, event string, f core) {
 
 			cCtx.do()
 
+			resp := cCtx.resp
 			cCtx.reset()
 			cCtx.conn = conn
-			return cCtx.resp
+			return resp
 		}
 		return ""
 	})
@@ -128,9 +130,10 @@ func (s *Engine) OnEventForAllNamespace(event string, f core) {
 
 				cCtx.do()
 
+				resp := cCtx.resp
 				cCtx.reset()
 				cCtx.conn = conn
-				return cCtx.resp
+				return resp
 			}
 			return ""
 		})
@@ -208,21 +211,36 @@ func (s *Engine) newSocketIO() {
 			ns = fmt.Sprintf("/%s", ns)
 		}
 		s.sioSrv.OnConnect(ns, func(conn skio.Conn) error {
+			defer func() {
+				if err := recover(); err != nil {
+					var buf [1 << 10]byte
+					runtime.Stack(buf[:], true)
+					log.Println("socket.io error:", err)
+					log.Println("panic stack:", string(buf[:]))
+				}
+			}()
 			cCtx := s.pool.Get().(*Context)
 			cCtx.conn = conn
 			conn.SetContext(cCtx)
-			log.Println("connect, id:", conn.URL(), conn.ID())
 			return nil
 		})
 		s.sioSrv.OnDisconnect(ns, func(conn skio.Conn, msg string) {
-			cCtx, ok := conn.Context().(*Context)
-			if ok {
-				if s.connCloseHandler != nil {
-					s.connCloseHandler(cCtx)
+			defer func() {
+				if err := recover(); err != nil {
+					var buf [1 << 10]byte
+					runtime.Stack(buf[:], true)
+					log.Println("socket.io error:", err)
+					log.Println("panic stack:", string(buf[:]))
 				}
-				s.pool.Put(cCtx.reset())
+			}()
+			cCtx, ok := conn.Context().(*Context)
+			if !ok {
+				return
 			}
-			log.Println(ns, "disconnect,disconnect, id:", conn.URL(), conn.ID())
+			if s.connCloseHandler != nil {
+				s.connCloseHandler(cCtx)
+			}
+			s.pool.Put(cCtx.reset())
 		})
 	}
 }
