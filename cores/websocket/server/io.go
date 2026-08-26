@@ -44,6 +44,10 @@ func Write(ctx context.Context, id int32, data []byte, conn *Conn) error {
 	if err != nil {
 		return err
 	}
-	conn.msgCh <- msg
-	return nil
+	select {
+	case <-conn.ctx.Done():
+		return conn.ctx.Err()
+	case conn.msgCh <- msg:
+		return nil
+	}
 }

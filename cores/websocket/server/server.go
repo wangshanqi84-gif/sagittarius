@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
 )
 
 type Conn struct {
@@ -22,10 +23,6 @@ type Conn struct {
 	remoteAddr string
 	header     http.Header
 	params     map[string]string
-}
-
-func (c *Conn) Close() error {
-	return c.c.Close()
 }
 
 func (c *Conn) write() {
@@ -45,6 +42,8 @@ func (c *Conn) serve() {
 	for {
 		select {
 		case <-c.ctx.Done():
+			close(c.msgCh)
+			_ = c.c.Close()
 			return
 		default:
 			if c.server.timeOut > 0 {
@@ -186,7 +185,6 @@ func (s *Engine) Start(ctx context.Context) error {
 			defer func() {
 				s.trackConn(c, false)
 				c.cancel()
-				close(c.msgCh)
 			}()
 
 			c.serve()
@@ -217,7 +215,7 @@ func (s *Engine) Start(ctx context.Context) error {
 	}
 	log.Println(fmt.Sprintf("websocket path:%v, port:%v init done", s.path, s.port))
 	if err := s.httpServer.ListenAndServe(); err != nil {
-		if err != http.ErrServerClosed {
+		if !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
 	}
