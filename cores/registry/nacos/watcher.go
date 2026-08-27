@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
 	"github.com/wangshanqi84-gif/sagittarius/cores/registry"
@@ -22,6 +23,8 @@ type watcher struct {
 	proto       string
 	ctx         context.Context
 	cancel      context.CancelFunc
+	mu          sync.RWMutex
+	cache       []*registry.Service // 缓存最后一次成功获取的服务列表
 }
 
 func newWatcher(ctx context.Context, key string, sn string, namespace string, proto string, cli naming_client.INamingClient) (*watcher, error) {
@@ -47,6 +50,13 @@ func (w *watcher) Start() ([]*registry.Service, error) {
 		})
 		if err != nil {
 			log.Println(fmt.Sprintf("nacos watcher select instances error:%v", err))
+			w.mu.RLock()
+			cache := make([]*registry.Service, len(w.cache))
+			copy(cache, w.cache)
+			w.mu.RUnlock()
+			if len(cache) > 0 {
+				return cache, nil
+			}
 			return nil, err
 		}
 		var srvs []*registry.Service
@@ -75,6 +85,9 @@ func (w *watcher) Start() ([]*registry.Service, error) {
 				log.Println(fmt.Sprintf("consul watcher srv:%+v", *srv))
 			}
 		}
+		w.mu.Lock()
+		w.cache = srvs
+		w.mu.Unlock()
 		return srvs, nil
 	}
 

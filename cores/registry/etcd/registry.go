@@ -195,15 +195,9 @@ func (r *Registry) Deregister(ctx context.Context, service *registry.Service) er
 // Stop 关闭服务发现
 func (r *Registry) Stop(ctx context.Context, service *registry.Service) error {
 	defer func() {
-		if r.lease != nil {
-			r.lease.Close()
-		}
 		_ = r.client.Close()
 	}()
-	key := fmt.Sprintf("%s/%s/%s/%s", r.opts.namespace, r.opts.product,
-		strings.Join(strings.Split(service.ServiceName, "."), "/"), service.ID)
-	_, err := r.client.Delete(ctx, key)
-	return err
+	return r.Deregister(ctx, service)
 }
 
 // Watcher 获取watcher

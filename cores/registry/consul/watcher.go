@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
@@ -22,6 +23,8 @@ type watcher struct {
 	key         string
 	serviceName string
 	proto       string
+	mu          sync.RWMutex
+	cache       []*registry.Service // 缓存最后一次成功获取的服务列表
 }
 
 func newWatcher(ctx context.Context, key string, sn string, proto string, client *api.Client) (*watcher, error) {
@@ -49,8 +52,21 @@ func (w *watcher) Start() ([]*registry.Service, error) {
 		cancel()
 		if err != nil {
 			log.Println(fmt.Sprintf("consul watcher health check error:%v", err))
+			w.mu.RLock()
+			cache := make([]*registry.Service, len(w.cache))
+			copy(cache, w.cache)
+			w.mu.RUnlock()
+			if len(cache) > 0 {
+				return cache, nil
+			}
 			return nil, err
 		}
+
+		if meta.LastIndex < w.index {
+			log.Println("consul watcher: detected consul restart, resetting index")
+			w.index = 0
+		}
+
 		var srvs []*registry.Service
 		if len(entries) != 0 && meta.LastIndex != w.index {
 			for _, entry := range entries {
@@ -75,6 +91,9 @@ func (w *watcher) Start() ([]*registry.Service, error) {
 			}
 			w.index = meta.LastIndex
 		}
+		w.mu.Lock()
+		w.cache = srvs
+		w.mu.Unlock()
 		return srvs, nil
 	}
 

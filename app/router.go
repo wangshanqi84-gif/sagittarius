@@ -214,7 +214,7 @@ func ShutDown() error {
 	if r.discovery != nil && len(r.info.Hosts) > 0 {
 		ctx, cancel := context.WithTimeout(sctx, 5*time.Second)
 		defer cancel()
-		if err := r.discovery.Deregister(ctx, r.info); err != nil {
+		if err := r.discovery.Stop(ctx, r.info); err != nil {
 			logger.Gen(sctx, "server shutdown, deregister error:%v", err)
 		} else {
 			logger.Gen(sctx, "service %s deregister, %v", r.info.ServiceName, r.info)
