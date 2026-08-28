@@ -234,7 +234,7 @@ func (c *Client) NewMutexWithExtend(name string, expired time.Duration) *Mutex {
 	}
 }
 
-func (c *Client) GetDns() string {
+func (c *Client) GetDns(ns string) string {
 	var schema string
 	if c.model == typeCluster {
 		schema = "rediscluster://"
@@ -246,5 +246,9 @@ func (c *Client) GetDns() string {
 		dns += fmt.Sprintf("%s:%s@", c.username, c.password)
 	}
 	dns += c.addrs[0]
+	dns += fmt.Sprintf("?db=%d", c.db)
+	if ns != "" {
+		dns += fmt.Sprintf("&ns=%s", ns)
+	}
 	return dns
 }
