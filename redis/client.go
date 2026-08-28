@@ -246,9 +246,11 @@ func (c *Client) GetDns(ns string) string {
 		dns += fmt.Sprintf("%s:%s@", c.username, c.password)
 	}
 	dns += c.addrs[0]
-	dns += fmt.Sprintf("?db=%d", c.db)
+	if c.model != typeCluster {
+		dns += fmt.Sprintf("/%d", c.db)
+	}
 	if ns != "" {
-		dns += fmt.Sprintf("&ns=%s", ns)
+		dns += fmt.Sprintf("?ns=%s", ns)
 	}
 	return dns
 }
