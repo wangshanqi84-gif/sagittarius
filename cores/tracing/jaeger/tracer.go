@@ -8,6 +8,7 @@ import (
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
 	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -89,10 +90,22 @@ func NewTracer(ctx context.Context, serviceName string, opts ...Option) tracing.
 	if option.ebs <= 0 {
 		option.ebs = 512
 	}
+	// 公共的 Resource 配置
+	resourceOpt := sdk.WithResource(
+		resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName(serviceName),
+			semconv.DeploymentName(env.GetRunEnv()),
+		),
+	)
 	var provider *sdk.TracerProvider
 	var tracer trace.Tracer
 	if option.addr == "" {
-		provider = sdk.NewTracerProvider()
+		opt := []sdk.TracerProviderOption{
+			resourceOpt,
+			sdk.WithSampler(sdk.NeverSample()),
+		}
+		provider = sdk.NewTracerProvider(opt...)
 		tracer = provider.Tracer(serviceName)
 	} else {
 		// 解析addr
@@ -123,6 +136,8 @@ func NewTracer(ctx context.Context, serviceName string, opts ...Option) tracing.
 				ctx,
 				otlptracehttp.WithEndpoint(u.Host),
 			)
+		default:
+			panic(errors.New("unknown otlptrace.Exporter schema: " + schema))
 		}
 		if err != nil {
 			panic(err)
@@ -134,13 +149,7 @@ func NewTracer(ctx context.Context, serviceName string, opts ...Option) tracing.
 				sdk.WithMaxQueueSize(option.qs),
 				sdk.WithExportTimeout(option.eto),
 			),
-			sdk.WithResource(
-				resource.NewWithAttributes(
-					semconv.SchemaURL,
-					semconv.ServiceName(serviceName),
-					semconv.DeploymentName(env.GetRunEnv()),
-				),
-			),
+			resourceOpt,
 			sdk.WithSampler(
 				sdk.ParentBased(sdk.TraceIDRatioBased(option.ratio)),
 			),
