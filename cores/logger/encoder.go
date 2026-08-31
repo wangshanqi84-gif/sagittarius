@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type CustomJsonEncoder func(context.Context) (string, string)
@@ -40,14 +39,9 @@ func defaultCallEncoder(deep int) string {
 }
 
 func traceEncoder(ctx context.Context) string {
-	var traceID string
-	span := opentracing.SpanFromContext(ctx)
-	if span == nil {
-		traceID = ""
-	} else {
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			traceID = sc.TraceID().String()
-		}
+	span := trace.SpanFromContext(ctx)
+	if !span.SpanContext().IsValid() {
+		return ""
 	}
-	return traceID
+	return span.SpanContext().TraceID().String()
 }

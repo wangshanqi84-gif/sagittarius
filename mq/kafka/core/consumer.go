@@ -24,11 +24,11 @@ type GroupConsumer struct {
 	workerCh      chan *ConsumerMessage
 }
 
-func (gc *GroupConsumer) Setup(sess sarama.ConsumerGroupSession) error {
+func (gc *GroupConsumer) Setup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
-func (gc *GroupConsumer) Cleanup(sess sarama.ConsumerGroupSession) error {
+func (gc *GroupConsumer) Cleanup(_ sarama.ConsumerGroupSession) error {
 	return nil
 }
 
@@ -184,6 +184,7 @@ func NewGroupConsumer(
 						// sarama会自动进行提交 默认间隔1秒
 						msg.sess.MarkMessage(msg.msg, "")
 					}
+					msg.Finish()
 				case <-gc.ctx.Done():
 					return
 				}

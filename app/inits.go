@@ -56,7 +56,7 @@ func initLogger(cfg *config.LogConfig) {
 	}
 }
 
-func initTracer(fullName string) tracing.Tracer {
+func initTracer(ctx context.Context, fullName string) tracing.Tracer {
 	addr := env.GetEnv(env.SgtJaegerAddr)
 	// tracer配置
 	var opts []jaeger.Option
@@ -65,7 +65,7 @@ func initTracer(fullName string) tracing.Tracer {
 		opts = append(opts, jaeger.WithAddr(addr))
 	}
 	// 初始化tracer
-	return jaeger.NewTracer(fullName, opts...)
+	return jaeger.NewTracer(ctx, fullName, opts...)
 }
 
 func initDiscovery(ctx context.Context, cfg *config.ServiceConfig) registry.Discovery {

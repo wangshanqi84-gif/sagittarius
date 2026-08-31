@@ -50,6 +50,9 @@ const (
 
 // Jaeger相关环境变量
 // SGT_JAEGER_ADDR jaeger地址(链路追踪收集)可选
+// 格式https://jaeger:4318
+// 格式http://jaeger:4318
+// 格式grpc://jaeger:4318
 // --
 
 const (

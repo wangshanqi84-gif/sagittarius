@@ -2,23 +2,27 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 	"github.com/wangshanqi84-gif/sagittarius/mq/rocket/metadata"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type PushConsumer struct {
 	ctx        context.Context
 	cli        rocketmq.PushConsumer
 	handlers   map[string]handler // key:topic value:handler
-	tracer     opentracing.Tracer
+	tracer     tracing.Tracer
 	expression string
 }
 
@@ -80,34 +84,48 @@ func (p *PushConsumer) RegisterHandler(topic string, f OnMessage) error {
 		return errors.New("topic already registered")
 	}
 	fn := func(ctx context.Context, msgs ...*primitive.MessageExt) (consumer.ConsumeResult, error) {
+		var errs []error
 		for _, msg := range msgs {
+			var span trace.Span
+			nCtx := ctx
 			if p.tracer != nil {
-				var opts []opentracing.StartSpanOption
-				// 从header中获取spanContext,如果没有，则这里新建一个
+				// 从消息属性中提取父上下文
+				pCtx := ctx
 				// 提取
-				m := metadata.NewMetaMapWithData(msg.GetProperties())
-				spanCtx, err := p.tracer.Extract(opentracing.TextMap, m)
-				if err != nil {
-					// 如果提取失败
-					opts = []opentracing.StartSpanOption{
-						ext.SpanKindConsumer,
-						opentracing.Tag{Key: string(ext.Component), Value: "rocket"},
-					}
-				} else {
-					opts = []opentracing.StartSpanOption{
-						opentracing.ChildOf(spanCtx),
-						ext.SpanKindConsumer,
-						opentracing.Tag{Key: string(ext.Component), Value: "rocket"},
-					}
+				if msg.GetProperties() != nil && len(msg.GetProperties()) > 0 {
+					m := metadata.NewMetaMapWithData(msg.GetProperties())
+					propagator := otel.GetTextMapPropagator()
+					pCtx = propagator.Extract(ctx, m)
 				}
-				span := p.tracer.StartSpan(msg.Topic, opts...)
-				ctx = opentracing.ContextWithSpan(context.TODO(), span)
-				defer span.Finish()
+				// 创建消费者 span
+				nCtx, span = p.tracer.Start(pCtx,
+					fmt.Sprintf("%s receive", msg.Topic),
+					trace.WithSpanKind(trace.SpanKindConsumer),
+					trace.WithAttributes(
+						attribute.String("messaging.system", "rocketmq"),
+						attribute.String("messaging.destination", msg.Topic),
+						attribute.String("messaging.operation", "receive"),
+						attribute.String("messaging.rocketmq.message_id", msg.MsgId),
+						attribute.Int("messaging.rocketmq.reconsume_times", int(msg.ReconsumeTimes)),
+					),
+				)
+			}
+			err := f(nCtx, msg)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if span.SpanContext().IsValid() {
+				if err != nil {
+					span.RecordError(err)
+					span.SetStatus(codes.Error, err.Error())
+				} else {
+					span.SetStatus(codes.Ok, "")
+				}
+				span.End()
 			}
 		}
-		err := f(ctx, msgs...)
-		if err != nil {
-			return consumer.ConsumeRetryLater, err
+		if len(errs) > 0 {
+			return consumer.ConsumeRetryLater, errs[0]
 		}
 		return consumer.ConsumeSuccess, nil
 	}

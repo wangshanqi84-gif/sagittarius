@@ -12,11 +12,13 @@ import (
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	gErrors "github.com/wangshanqi84-gif/sagittarius/cores/errors"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 ///////////////////////////////////////////
@@ -44,26 +46,27 @@ func PanicHandler(lgr *logger.Logger) core {
 	}
 }
 
-func TracingHandler(tracer opentracing.Tracer) core {
+func TracingHandler(tracer tracing.Tracer) core {
 	return func(c *Context) {
-		spanContext, err := tracer.Extract(
-			opentracing.HTTPHeaders,
-			opentracing.HTTPHeadersCarrier(c.Request().Header),
+		// 从HTTP headers中提取父上下文
+		propagator := otel.GetTextMapPropagator()
+		md := gCtx.HttpMetadata{Header: c.Request().Header}
+		pCtx := propagator.Extract(c.ctx, md)
+		// 创建服务端span
+		nCtx, span := tracer.Start(pCtx, c.Request().URL.String(),
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(
+				semconv.HTTPRequestMethodKey.String(c.Request().Method),
+				semconv.URLFullKey.String(c.Request().URL.String()),
+				semconv.URLSchemeKey.String(c.Request().URL.Scheme),
+				semconv.ServerAddressKey.String(c.Request().Host),
+				semconv.URLPathKey.String(c.Request().URL.Path),
+				semconv.ClientAddressKey.String(c.Request().RemoteAddr),
+			),
 		)
-		var opts []opentracing.StartSpanOption
-		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			opts = append(opts, opentracing.Tag{Key: string(ext.Component), Value: "http Server"})
-		} else {
-			opts = append(opts, opentracing.ChildOf(spanContext),
-				opentracing.Tag{Key: string(ext.Component), Value: "http Server"})
-		}
-		span := tracer.StartSpan(
-			c.Request().URL.String(),
-			opts...,
-		)
-		defer span.Finish()
+		defer span.End()
 
-		c.ctx = opentracing.ContextWithSpan(c.ctx, span)
+		c.ctx = nCtx
 		// context 写入上游服务信息
 		sk := gCtx.GetUberHttpHeader(c.Request().Header)
 		if sk != "" {

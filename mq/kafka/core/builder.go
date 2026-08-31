@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
 	"github.com/IBM/sarama"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 ///////////////////////////////
@@ -22,10 +24,10 @@ type IMessageBuilder interface {
 }
 
 type Builder struct {
-	tracer opentracing.Tracer
+	tracer tracing.Tracer
 }
 
-func NewMessageBuilder(tracer opentracing.Tracer) *Builder {
+func NewMessageBuilder(tracer tracing.Tracer) *Builder {
 	return &Builder{
 		tracer: tracer,
 	}
@@ -42,36 +44,35 @@ func (b *Builder) ProducerMessage(ctx context.Context, topic string, key []byte,
 		},
 	}
 	if ver.IsAtLeast(sarama.V0_11_0_0) {
-		// 从context中获取spanContext,如果上层没有开启追踪，则这里新建一个
-		var parentCtx opentracing.SpanContext
-		if parent := opentracing.SpanFromContext(ctx); parent != nil {
-			parentCtx = parent.Context()
-		}
-		span := b.tracer.StartSpan(
-			topic,
-			opentracing.ChildOf(parentCtx),
-			ext.SpanKindProducer,
-			opentracing.Tag{Key: string(ext.Component), Value: "kafka"},
+		// 创建生产者span
+		nCtx, span := b.tracer.Start(ctx, fmt.Sprintf("%s", topic),
+			trace.WithSpanKind(trace.SpanKindProducer),
+			trace.WithAttributes(
+				attribute.String("messaging.system", "kafka"),
+				attribute.String("messaging.destination", topic),
+				attribute.String("messaging.operation", "send"),
+				attribute.String("messaging.kafka.message_key", string(key)),
+				attribute.Int("messaging.kafka.message_size", len(data)),
+			),
 		)
+
 		// 注入context
 		m := new(TextMapMeta)
 		td, ok := gCtx.FromServerContext(ctx)
 		if ok {
 			m.SetUberMeta(fmt.Sprintf("%s.%s.%s", td.Namespace, td.Product, td.ServiceName))
 		}
-		err := b.tracer.Inject(span.Context(), opentracing.TextMap, m)
-		if err != nil {
-			// 注入失败则直接返回消息
-			return &pm
-		}
+		propagator := otel.GetTextMapPropagator()
+		propagator.Inject(nCtx, m)
 		// 将注入信息写入header进行传递
 		pm.msg.Headers = append(pm.msg.Headers, m.Data...)
+		pm.span = span
 	}
 	return &pm
 }
 
 func (b *Builder) ConsumerMessage(ctx context.Context, message *sarama.ConsumerMessage, ver sarama.KafkaVersion) *ConsumerMessage {
-	var opts []opentracing.StartSpanOption
+	pCtx := ctx
 	if ver.IsAtLeast(sarama.V0_11_0_0) {
 		// 从header中获取spanContext,如果没有，则这里新建一个
 		// 提取
@@ -81,39 +82,35 @@ func (b *Builder) ConsumerMessage(ctx context.Context, message *sarama.ConsumerM
 				m.Data = append(m.Data, *h)
 			}
 		}
-		spanCtx, err := b.tracer.Extract(opentracing.TextMap, m)
-		if err != nil {
-			// 如果提取失败
-			opts = []opentracing.StartSpanOption{
-				ext.SpanKindConsumer,
-				opentracing.Tag{Key: string(ext.Component), Value: "kafka"},
-			}
-		} else {
-			opts = []opentracing.StartSpanOption{
-				opentracing.ChildOf(spanCtx),
-				ext.SpanKindConsumer,
-				opentracing.Tag{Key: string(ext.Component), Value: "kafka"},
-			}
-		}
+		// 提取父上下文
+		propagator := otel.GetTextMapPropagator()
+		pCtx = propagator.Extract(ctx, m)
+		// 提取UberMeta并设置客户端上下文
 		sk := m.GetUberMeta()
 		if sk != "" {
 			ss := strings.Split(sk, ".")
-			ctx = gCtx.NewClientContext(ctx, gCtx.TransData{
+			pCtx = gCtx.NewClientContext(pCtx, gCtx.TransData{
 				Namespace:   ss[0],
 				Product:     ss[1],
 				ServiceName: strings.Join(ss[2:], "."),
 			})
 		}
-	} else {
-		opts = []opentracing.StartSpanOption{
-			ext.SpanKindConsumer,
-			opentracing.Tag{Key: string(ext.Component), Value: "kafka"},
-		}
 	}
-	span := b.tracer.StartSpan(message.Topic, opts...)
-	c := opentracing.ContextWithSpan(ctx, span)
+	// 创建消费者span
+	nCtx, span := b.tracer.Start(pCtx, message.Topic,
+		trace.WithSpanKind(trace.SpanKindConsumer),
+		trace.WithAttributes(
+			attribute.String("messaging.system", "kafka"),
+			attribute.String("messaging.destination", message.Topic),
+			attribute.String("messaging.operation", "receive"),
+			attribute.Int("messaging.kafka.partition", int(message.Partition)),
+			attribute.Int64("messaging.kafka.offset", message.Offset),
+		),
+	)
+
 	return &ConsumerMessage{
-		ctx: c,
-		msg: message,
+		ctx:  nCtx,
+		msg:  message,
+		span: span,
 	}
 }

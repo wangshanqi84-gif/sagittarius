@@ -10,11 +10,13 @@ import (
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -46,50 +48,42 @@ func RecoverServerInterceptor(lgr *logger.Logger) grpc.UnaryServerInterceptor {
 	}
 }
 
-func TracingServerUnaryInterceptor(tracer opentracing.Tracer) grpc.UnaryServerInterceptor {
+func TracingServerUnaryInterceptor(tracer tracing.Tracer) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 		rpcMD, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			rpcMD = metadata.New(nil)
 		}
 		md := gCtx.Metadata{MD: rpcMD}
-		spanContext, err := tracer.Extract(
-			opentracing.TextMap,
-			md,
-		)
-		var opts []opentracing.StartSpanOption
-		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			opts = append(opts, opentracing.Tag{Key: string(ext.Component), Value: "gRPC Server"},
-				ext.SpanKindRPCServer)
-		} else {
-			opts = append(opts, ext.RPCServerOption(spanContext),
-				opentracing.Tag{Key: string(ext.Component), Value: "gRPC Server"},
-				ext.SpanKindRPCServer)
-		}
-		span := tracer.StartSpan(
-			info.FullMethod,
-			opts...,
-		)
-		defer span.Finish()
 
-		ctx = opentracing.ContextWithSpan(ctx, span)
+		propagator := otel.GetTextMapPropagator()
+		pCtx := propagator.Extract(ctx, md)
+		// 创建服务端 span
+		nCtx, span := tracer.Start(pCtx, info.FullMethod,
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(
+				semconv.RPCSystemGRPC,
+				semconv.RPCMethodKey.String(info.FullMethod),
+			),
+		)
+		defer span.End()
 		// context 写入上游服务信息
 		// 获取远端ip
 		var peerIP string
-		p, ok := peer.FromContext(ctx)
+		p, ok := peer.FromContext(nCtx)
 		if ok {
 			peerIP = p.Addr.String()
 			peerIP = strings.Split(peerIP, ":")[0]
 		}
 		sk := gCtx.GetUberMeta(md)
 		ss := strings.Split(sk, ".")
-		ctx = gCtx.NewClientContext(ctx, gCtx.TransData{
+		nCtx = gCtx.NewClientContext(nCtx, gCtx.TransData{
 			Endpoint:    peerIP,
 			Namespace:   ss[0],
 			Product:     ss[1],
 			ServiceName: strings.Join(ss[2:], "."),
 		})
-		return handler(ctx, req)
+		return handler(nCtx, req)
 	}
 }
 

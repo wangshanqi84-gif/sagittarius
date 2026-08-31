@@ -4,9 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
+
 	"github.com/apache/rocketmq-client-go/v2/consumer"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/opentracing/opentracing-go"
 )
 
 type OnMessage func(context.Context, ...*primitive.MessageExt) error
@@ -21,7 +22,7 @@ type consumerOption struct {
 	retry             int
 	consumeTimeout    time.Duration
 	interceptors      []primitive.Interceptor
-	tracer            opentracing.Tracer
+	tracer            tracing.Tracer
 	model             consumer.MessageModel
 	from              consumer.ConsumeFromWhere
 	groupName         string
@@ -86,7 +87,7 @@ func WithInterceptors(interceptors []primitive.Interceptor) Option {
 }
 
 // WithTracer 链路追踪
-func WithTracer(tracer opentracing.Tracer) Option {
+func WithTracer(tracer tracing.Tracer) Option {
 	return func(o *consumerOption) {
 		o.tracer = tracer
 	}

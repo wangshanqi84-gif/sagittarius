@@ -8,11 +8,12 @@ import (
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func PanicHandler(lgr *logger.Logger) core {
@@ -33,18 +34,22 @@ func PanicHandler(lgr *logger.Logger) core {
 	}
 }
 
-func TracingHandler(tracer opentracing.Tracer) core {
+func TracingHandler(tracer tracing.Tracer) core {
 	return func(c *Context) {
-
-		var opts []opentracing.StartSpanOption
-		opts = append(opts, opentracing.Tag{Key: string(ext.Component), Value: "socket.io server"})
-		span := tracer.StartSpan(
+		// 创建新span
+		nCtx, span := tracer.Start(c.ctx,
 			fmt.Sprintf("%s", c.conn.Namespace()),
-			opts...,
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(
+				attribute.String("messaging.system", "socket.io"),
+				attribute.String("messaging.destination", c.conn.Namespace()),
+				attribute.String("messaging.protocol", "socket.io"),
+			),
 		)
-		defer span.Finish()
+		defer span.End()
+		// 更新context
+		c.ctx = nCtx
 
-		c.ctx = opentracing.ContextWithSpan(c.ctx, span)
 		c.Next()
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/IBM/sarama"
+	"go.opentelemetry.io/otel/trace"
 )
 
 ///////////////////////////////////
@@ -11,8 +12,9 @@ import (
 ///////////////////////////////////
 
 type ProducerMessage struct {
-	ctx context.Context
-	msg *sarama.ProducerMessage
+	ctx  context.Context
+	msg  *sarama.ProducerMessage
+	span trace.Span
 }
 
 func (pm *ProducerMessage) Ctx() context.Context {
@@ -34,6 +36,12 @@ func (pm *ProducerMessage) SetMetaData(metadata interface{}) {
 	pm.msg.Metadata = metadata
 }
 
+func (pm *ProducerMessage) Finish() {
+	if pm.span.SpanContext().IsValid() {
+		pm.span.End()
+	}
+}
+
 ///////////////////////////////////
 // 消费者消息
 ///////////////////////////////////
@@ -42,6 +50,7 @@ type ConsumerMessage struct {
 	ctx  context.Context
 	sess sarama.ConsumerGroupSession
 	msg  *sarama.ConsumerMessage
+	span trace.Span
 }
 
 func (cm *ConsumerMessage) Ctx() context.Context {
@@ -71,4 +80,10 @@ func (cm *ConsumerMessage) Commit() {
 
 func (cm *ConsumerMessage) Header() []*sarama.RecordHeader {
 	return cm.msg.Headers
+}
+
+func (cm *ConsumerMessage) Finish() {
+	if cm.span.SpanContext().IsValid() {
+		cm.span.End()
+	}
 }

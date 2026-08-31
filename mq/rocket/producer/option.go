@@ -3,8 +3,9 @@ package producer
 import (
 	"time"
 
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
+
 	"github.com/apache/rocketmq-client-go/v2/primitive"
-	"github.com/opentracing/opentracing-go"
 )
 
 type Option func(*producerOption)
@@ -16,7 +17,7 @@ type producerOption struct {
 	retry        int
 	topics       map[string]string
 	interceptors []primitive.Interceptor
-	tracer       opentracing.Tracer
+	tracer       tracing.Tracer
 }
 
 func WithNameServer(ns []string) Option {
@@ -49,7 +50,7 @@ func WithInterceptors(interceptors []primitive.Interceptor) Option {
 	}
 }
 
-func WithTracer(tracer opentracing.Tracer) Option {
+func WithTracer(tracer tracing.Tracer) Option {
 	return func(o *producerOption) {
 		o.tracer = tracer
 	}

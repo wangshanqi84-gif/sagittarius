@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"runtime"
@@ -9,11 +8,15 @@ import (
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
+	"github.com/wangshanqi84-gif/sagittarius/cores/websocket/context"
 
 	"github.com/getsentry/sentry-go"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 ///////////////////////////////////////////
@@ -38,27 +41,33 @@ func PanicHandler(lgr *logger.Logger) core {
 	}
 }
 
-func TracingHandler(tracer opentracing.Tracer) core {
+func TracingHandler(tracer tracing.Tracer) core {
 	return func(c *Context) {
-		buffer := bytes.NewBuffer(c.Header().Trace())
-		spanContext, err := tracer.Extract(
-			opentracing.Binary,
-			buffer,
-		)
-		var opts []opentracing.StartSpanOption
-		if err != nil && err != opentracing.ErrSpanContextNotFound {
-			opts = append(opts, opentracing.Tag{Key: string(ext.Component), Value: "websocket Server"})
-		} else {
-			opts = append(opts, opentracing.ChildOf(spanContext),
-				opentracing.Tag{Key: string(ext.Component), Value: "websocket Server"})
+		// 从二进制数据中提取父上下文
+		if len(c.Header().Trace()) > 0 {
+			var traceCtx context.TraceContext
+			if err := json.Unmarshal(c.Header().Trace(), &traceCtx); err == nil {
+				carrier := propagation.MapCarrier{
+					"trace": fmt.Sprintf("%s-%s",
+						traceCtx.TraceID,
+						traceCtx.SpanID,
+					),
+				}
+				propagator := otel.GetTextMapPropagator()
+				c.ctx = propagator.Extract(c.ctx, carrier)
+			}
 		}
-		span := tracer.StartSpan(
+		// 创建服务端 span
+		nCtx, span := tracer.Start(c.ctx,
 			fmt.Sprintf("%d", c.Header().MsgID()),
-			opts...,
+			trace.WithSpanKind(trace.SpanKindServer),
+			trace.WithAttributes(
+				attribute.String("ws.message_id", fmt.Sprintf("%d", c.Header().MsgID())),
+			),
 		)
-		defer span.Finish()
+		defer span.End()
 
-		c.ctx = opentracing.ContextWithSpan(c.ctx, span)
+		c.ctx = nCtx
 		c.Next()
 	}
 }

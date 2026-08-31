@@ -13,8 +13,7 @@ import (
 	gErrors "github.com/wangshanqi84-gif/sagittarius/cores/errors"
 
 	"github.com/go-playground/form/v4"
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type core func(*Context)
@@ -101,16 +100,11 @@ func (c *Context) Writer() http.ResponseWriter {
 }
 
 func (c *Context) TraceID() string {
-	var traceID string
-	span := opentracing.SpanFromContext(c.ctx)
-	if span == nil {
-		traceID = ""
-	} else {
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			traceID = sc.TraceID().String()
-		}
+	span := trace.SpanFromContext(c.ctx)
+	if !span.SpanContext().IsValid() {
+		return ""
 	}
-	return traceID
+	return span.SpanContext().TraceID().String()
 }
 
 func (c *Context) WithValue(key any, value any) {

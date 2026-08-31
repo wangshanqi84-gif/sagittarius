@@ -19,3 +19,8 @@ func FromClientContext(ctx context.Context) (TransData, bool) {
 	td, ok := ctx.Value(clientTransportKey{}).(TransData)
 	return td, ok
 }
+
+type TraceContext struct {
+	TraceID string `json:"trace_id"`
+	SpanID  string `json:"span_id"`
+}

@@ -6,9 +6,12 @@ import (
 	"time"
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
+	"go.opentelemetry.io/otel"
+	oCodes "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -19,21 +22,18 @@ import (
 // 客户端拦截器
 ///////////////////////////////////////////
 
-func TracingClientUnaryInterceptor(baseCtx context.Context, tracer opentracing.Tracer) grpc.UnaryClientInterceptor {
+func TracingClientUnaryInterceptor(baseCtx context.Context, tracer tracing.Tracer) grpc.UnaryClientInterceptor {
 	return func(ctx context.Context, method string, request, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
-		//一个RPC调用的服务端的span，和RPC服务客户端的span构成ChildOf关系
-		var parentCtx opentracing.SpanContext
-		parentSpan := opentracing.SpanFromContext(ctx)
-		if parentSpan != nil {
-			parentCtx = parentSpan.Context()
-		}
-		span := tracer.StartSpan(
-			method,
-			opentracing.ChildOf(parentCtx),
-			opentracing.Tag{Key: string(ext.Component), Value: "gRPC Client"},
-			ext.SpanKindRPCClient,
+		// 从 context 中获取当前的 span（如果有的话）
+		// OpenTelemetry 会自动处理父子关系
+		nCtx, span := tracer.Start(ctx, method,
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(
+				semconv.RPCSystemGRPC,
+				semconv.RPCMethodKey.String(method),
+			),
 		)
-		defer span.Finish()
+		defer span.End()
 
 		rpcMD, ok := metadata.FromOutgoingContext(ctx)
 		if !ok {
@@ -46,10 +46,19 @@ func TracingClientUnaryInterceptor(baseCtx context.Context, tracer opentracing.T
 		if ok {
 			gCtx.SetUberMeta(md, fmt.Sprintf("%s.%s.%s", td.Namespace, td.Product, td.ServiceName))
 		}
-		if err := tracer.Inject(span.Context(), opentracing.TextMap, md); err == nil {
-			ctx = metadata.NewOutgoingContext(ctx, md.MD)
+		propagator := otel.GetTextMapPropagator()
+		propagator.Inject(ctx, md)
+
+		nCtx = metadata.NewOutgoingContext(nCtx, md.MD)
+		err := invoker(nCtx, method, request, reply, cc, opts...)
+		// 记录错误
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(oCodes.Error, err.Error())
+		} else {
+			span.SetStatus(oCodes.Ok, "OK")
 		}
-		return invoker(ctx, method, request, reply, cc, opts...)
+		return err
 	}
 }
 

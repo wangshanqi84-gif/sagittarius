@@ -54,6 +54,7 @@ func (r *router) Discovery() registry.Discovery {
 	return r.discovery
 }
 
+// todo 用到这里的都变了
 func (r *router) Tracer() tracing.Tracer {
 	return r.tracer
 }
@@ -134,7 +135,7 @@ func InitRouter(sd *config.ServiceDefine, opts ...config.Option) {
 		// 初始化日志
 		initLogger(baseCfg.Log)
 		// 初始化链路追踪
-		r.tracer = initTracer(fullName)
+		r.tracer = initTracer(r.baseCtx, fullName)
 		// 初始化服务发现
 		r.discovery = initDiscovery(ctx, &baseCfg)
 		if baseCfg.Discovery != nil && baseCfg.Discovery.Used != "" && r.discovery == nil {

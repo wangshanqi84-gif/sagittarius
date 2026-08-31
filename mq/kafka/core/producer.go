@@ -63,7 +63,7 @@ func NewSyncProducer(ctx context.Context, brokers []string, builder IMessageBuil
 	go func(producer *SyncProducer) {
 		select {
 		case <-producer.ctx.Done():
-			producer.sp.Close()
+			_ = producer.sp.Close()
 		}
 	}(&sp)
 	return &sp, nil
@@ -82,6 +82,7 @@ func (sp *SyncProducer) SendMessage(ctx context.Context, alias string, key []byt
 	} else {
 		sp.succChan <- msg.msg
 	}
+	msg.Finish()
 }
 
 func (sp *SyncProducer) SendMessages(ctx context.Context, alias string, md []*MessageData) {
@@ -94,6 +95,7 @@ func (sp *SyncProducer) SendMessages(ctx context.Context, alias string, md []*Me
 	for _, data := range md {
 		msg := sp.builder.ProducerMessage(ctx, topic, data.Key, data.Data, sp.kafkaVer)
 		msgs = append(msgs, msg.msg)
+		msg.Finish()
 	}
 	if err := sp.sp.SendMessages(msgs); err != nil {
 		sp.errChan <- &sarama.ProducerError{Msg: msgs[0], Err: err}
@@ -150,7 +152,7 @@ func NewAsyncProducer(ctx context.Context, brokers []string, builder IMessageBui
 			case msg := <-producer.ap.Successes():
 				producer.succChan <- msg
 			case <-producer.ctx.Done():
-				producer.ap.Close()
+				_ = producer.ap.Close()
 				return
 			}
 		}
@@ -166,6 +168,7 @@ func (ap *AsyncProducer) SendMessage(ctx context.Context, alias string, key []by
 	}
 	msg := ap.builder.ProducerMessage(ctx, topic, key, data, ap.kafkaVer)
 	ap.ap.Input() <- msg.msg
+	msg.Finish()
 }
 
 func (ap *AsyncProducer) SendMessages(ctx context.Context, alias string, md []*MessageData) {
@@ -174,13 +177,14 @@ func (ap *AsyncProducer) SendMessages(ctx context.Context, alias string, md []*M
 	if _, has := ap.topics[alias]; has {
 		topic = ap.topics[alias]
 	}
-	var msgs []*sarama.ProducerMessage
+	var msgs []*ProducerMessage
 	for _, data := range md {
 		msg := ap.builder.ProducerMessage(ctx, topic, data.Key, data.Data, ap.kafkaVer)
-		msgs = append(msgs, msg.msg)
+		msgs = append(msgs, msg)
 	}
 	for _, msg := range msgs {
-		ap.ap.Input() <- msg
+		ap.ap.Input() <- msg.msg
+		msg.Finish()
 	}
 }
 

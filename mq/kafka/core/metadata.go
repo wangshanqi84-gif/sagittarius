@@ -35,11 +35,19 @@ func (tm *TextMapMeta) Set(key, val string) {
 	})
 }
 
-func (tm TextMapMeta) ForeachKey(handler func(key, val string) error) error {
+func (tm *TextMapMeta) Get(key string) string {
 	for _, h := range tm.Data {
-		if err := handler(string(h.Key), string(h.Value)); err != nil {
-			return err
+		if string(h.Key) == key {
+			return string(h.Value)
 		}
 	}
-	return nil
+	return ""
+}
+
+func (tm *TextMapMeta) Keys() []string {
+	var keys []string
+	for _, h := range tm.Data {
+		keys = append(keys, string(h.Key))
+	}
+	return keys
 }

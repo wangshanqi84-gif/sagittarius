@@ -20,11 +20,14 @@ func (mm *MetaMap) Set(key, val string) {
 	mm.data[key] = val
 }
 
-func (mm MetaMap) ForeachKey(handler func(key, val string) error) error {
-	for k, v := range mm.data {
-		if err := handler(k, v); err != nil {
-			return err
-		}
+func (mm *MetaMap) Get(key string) string {
+	return mm.data[key]
+}
+
+func (mm *MetaMap) Keys() []string {
+	var keys []string
+	for k := range mm.data {
+		keys = append(keys, k)
 	}
 	return nil
 }

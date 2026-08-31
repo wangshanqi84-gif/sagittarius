@@ -9,10 +9,13 @@ import (
 
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/registry"
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Invoker func(ctx context.Context, c *Client, req *http.Request) (*http.Response, error)
@@ -83,30 +86,38 @@ func invoke(ctx context.Context, c *Client, req *http.Request) (*http.Response, 
 // 客户端拦截器
 ///////////////////////////////////////////
 
-func TracingInterceptor(baseCtx context.Context, tracer opentracing.Tracer) Interceptor {
+func TracingInterceptor(baseCtx context.Context, tracer tracing.Tracer) Interceptor {
 	return func(ctx context.Context, c *Client, req *http.Request, invoker Invoker) (*http.Response, error) {
-		//一个http调用的服务端的span，和http服务客户端的span构成ChildOf关系
-		var parentCtx opentracing.SpanContext
-		parentSpan := opentracing.SpanFromContext(ctx)
-		if parentSpan != nil {
-			parentCtx = parentSpan.Context()
-		}
-		span := tracer.StartSpan(
-			req.URL.String(),
-			opentracing.ChildOf(parentCtx),
-			opentracing.Tag{Key: string(ext.Component), Value: "http Client"},
+		// 创建一个新的span 自动继承父span(如果有的话)
+		nCtx, span := tracer.Start(ctx, req.URL.String(),
+			trace.WithSpanKind(trace.SpanKindClient),
+			trace.WithAttributes(
+				semconv.HTTPRequestMethodKey.String(req.Method),
+				semconv.URLFullKey.String(req.URL.String()),
+				semconv.URLSchemeKey.String(req.URL.Scheme),
+				semconv.ServerAddressKey.String(req.URL.Host),
+				semconv.URLPathKey.String(req.URL.Path),
+			),
 		)
-		defer span.Finish()
+		defer span.End()
 
 		td, ok := gCtx.FromServerContext(baseCtx)
 		if ok {
 			gCtx.SetUberHttpHeader(req.Header, fmt.Sprintf("%s.%s.%s", td.Namespace, td.Product, td.ServiceName))
 		}
-		carrier := opentracing.HTTPHeadersCarrier(req.Header)
-		if err := tracer.Inject(span.Context(), opentracing.HTTPHeaders, carrier); err != nil {
-			return nil, err
+		md := gCtx.HttpMetadata{Header: req.Header}
+		// 注入上下文到 HTTP headers
+		propagator := otel.GetTextMapPropagator()
+		propagator.Inject(nCtx, md)
+
+		rsp, err := invoker(ctx, c, req)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
+		} else {
+			span.SetStatus(codes.Ok, "")
 		}
-		return invoker(ctx, c, req)
+		return rsp, err
 	}
 }
 

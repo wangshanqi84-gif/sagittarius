@@ -4,21 +4,23 @@ import (
 	"context"
 	"time"
 
+	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
 	"github.com/wangshanqi84-gif/sagittarius/mq/rocket/metadata"
 
 	"github.com/apache/rocketmq-client-go/v2"
 	"github.com/apache/rocketmq-client-go/v2/primitive"
 	"github.com/apache/rocketmq-client-go/v2/producer"
-	"github.com/opentracing/opentracing-go"
-	"github.com/opentracing/opentracing-go/ext"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type Producer struct {
 	ctx    context.Context
 	cli    rocketmq.Producer
 	topics map[string]string
-	tracer opentracing.Tracer
+	tracer tracing.Tracer
 }
 
 func NewProducer(ctx context.Context, opts ...Option) (*Producer, error) {
@@ -69,7 +71,7 @@ func NewProducer(ctx context.Context, opts ...Option) (*Producer, error) {
 	go func() {
 		select {
 		case <-p.ctx.Done():
-			p.cli.Shutdown()
+			_ = p.cli.Shutdown()
 		}
 	}()
 	return p, nil
@@ -98,24 +100,20 @@ func (p *Producer) SyncSend(ctx context.Context, alias string,
 	}
 	// 链路追踪
 	if p.tracer != nil {
-		// 从context中获取spanContext,如果上层没有开启追踪，则这里新建一个
-		var parentCtx opentracing.SpanContext
-		if parent := opentracing.SpanFromContext(ctx); parent != nil {
-			parentCtx = parent.Context()
-		}
-		span := p.tracer.StartSpan(
-			topic,
-			opentracing.ChildOf(parentCtx),
-			ext.SpanKindProducer,
-			opentracing.Tag{Key: string(ext.Component), Value: "rocket"},
+		// 创建生产者 span
+		newCtx, span := p.tracer.Start(ctx, topic,
+			trace.WithSpanKind(trace.SpanKindProducer),
+			trace.WithAttributes(
+				attribute.String("messaging.system", "rocketmq"),
+				attribute.String("messaging.destination", topic),
+				attribute.String("messaging.operation", "send"),
+			),
 		)
+		defer span.End()
 		// 注入context
 		m := metadata.NewMetaMap()
-		err := p.tracer.Inject(span.Context(), opentracing.TextMap, m)
-		if err != nil {
-			// 注入失败则直接发送消息
-			return p.cli.SendSync(ctx, msg)
-		}
+		propagator := otel.GetTextMapPropagator()
+		propagator.Inject(newCtx, m)
 		// 将注入信息写入header进行传递
 		msg.WithProperties(m.Data())
 	}

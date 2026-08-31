@@ -11,15 +11,12 @@ type Metadata struct {
 	metadata.MD
 }
 
-func (m Metadata) ForeachKey(handler func(key, val string) error) error {
-	for k, values := range m.MD {
-		for _, v := range values {
-			if err := handler(k, v); err != nil {
-				return err
-			}
-		}
+func (m Metadata) Keys() []string {
+	var keys []string
+	for k := range m.MD {
+		keys = append(keys, k)
 	}
-	return nil
+	return keys
 }
 
 func (m Metadata) Set(key, val string) {
@@ -34,6 +31,32 @@ func (m Metadata) Get(key string) string {
 		return ""
 	}
 	return m.MD[key][0]
+}
+
+type HttpMetadata struct {
+	Header http.Header
+}
+
+func (m HttpMetadata) Keys() []string {
+	var keys []string
+	for k := range m.Header {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (m HttpMetadata) Set(key, val string) {
+	m.Header[key] = append(m.Header[key], val)
+}
+
+func (m HttpMetadata) Get(key string) string {
+	if _, has := m.Header[key]; !has {
+		return ""
+	}
+	if len(m.Header[key]) == 0 {
+		return ""
+	}
+	return m.Header[key][0]
 }
 
 const (
