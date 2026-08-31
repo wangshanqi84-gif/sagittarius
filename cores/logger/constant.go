@@ -14,5 +14,6 @@ const (
 )
 
 var (
-	PathDeep = 4
+	PathDeep    = 4
+	DefaultSkip = 4
 )

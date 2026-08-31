@@ -22,6 +22,7 @@ type Logger struct {
 	saveDays int
 	level    Level
 	pathDeep int
+	skip     int
 	// 格式控制
 	consoleSeparator string
 	format           string
@@ -43,6 +44,7 @@ func New(name string, opts ...Option) *Logger {
 		saveDays:         _defaultSaveDays,
 		format:           ConsoleFormat,
 		pathDeep:         PathDeep,
+		skip:             DefaultSkip,
 		level:            NoneLevel,
 		EncodeCaller:     defaultCallEncoder,
 		EncodeTime:       defaultTimeEncoder,
@@ -64,6 +66,7 @@ func NewGroup(level Level, opts ...Option) *Logger {
 		saveDays:         _defaultSaveDays,
 		format:           ConsoleFormat,
 		pathDeep:         PathDeep,
+		skip:             DefaultSkip,
 		level:            level,
 		EncodeCaller:     defaultCallEncoder,
 		EncodeTime:       defaultTimeEncoder,
@@ -176,7 +179,7 @@ func (l *Logger) write(ctx context.Context, level Level, format string, args ...
 		if d := l.EncodeTime(time.Now()); d != "" {
 			data["time"] = d
 		}
-		if c := l.EncodeCaller(l.pathDeep); c != "" {
+		if c := l.EncodeCaller(l.pathDeep, l.skip); c != "" {
 			data["caller"] = c
 		}
 		if lv := level.String(); lv != "" {
@@ -203,7 +206,7 @@ func (l *Logger) write(ctx context.Context, level Level, format string, args ...
 		if d := l.EncodeTime(time.Now()); d != "" {
 			buf.WriteString(d + l.consoleSeparator)
 		}
-		if c := l.EncodeCaller(l.pathDeep); c != "" {
+		if c := l.EncodeCaller(l.pathDeep, l.skip); c != "" {
 			buf.WriteString(c + l.consoleSeparator)
 		}
 		if lvl := l.EncoderLevel(level); lvl != "" {
@@ -255,6 +258,12 @@ func SetFormat(format string) Option {
 func SetPathDeep(deep int) Option {
 	return func(logger *Logger) {
 		logger.pathDeep = deep
+	}
+}
+
+func SetSkip(skip int) Option {
+	return func(logger *Logger) {
+		logger.skip = skip
 	}
 }
 

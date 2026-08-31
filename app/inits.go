@@ -52,6 +52,10 @@ func initLogger(cfg *config.LogConfig) {
 		if cfg.PathDeep != 0 {
 			opts = append(opts, logger.SetPathDeep(cfg.PathDeep))
 		}
+		// 设置skip
+		if cfg.Skip != 0 {
+			opts = append(opts, logger.SetSkip(cfg.Skip))
+		}
 		// 初始化日志
 		gLog.InitLogger(cfg.Level, opts...)
 	} else {
