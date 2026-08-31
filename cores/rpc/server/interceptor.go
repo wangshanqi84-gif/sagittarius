@@ -11,6 +11,7 @@ import (
 	gCtx "github.com/wangshanqi84-gif/sagittarius/cores/context"
 	"github.com/wangshanqi84-gif/sagittarius/cores/logger"
 	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
+	oCodes "go.opentelemetry.io/otel/codes"
 
 	"github.com/getsentry/sentry-go"
 	"github.com/pkg/errors"
@@ -83,7 +84,15 @@ func TracingServerUnaryInterceptor(tracer tracing.Tracer) grpc.UnaryServerInterc
 			Product:     ss[1],
 			ServiceName: strings.Join(ss[2:], "."),
 		})
-		return handler(nCtx, req)
+		rsp, err := handler(nCtx, req)
+		// 记录错误
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(oCodes.Error, err.Error())
+		} else {
+			span.SetStatus(oCodes.Ok, "OK")
+		}
+		return rsp, err
 	}
 }
 
