@@ -43,6 +43,8 @@ type LogConfig struct {
 	Level string `yaml:"level" json:"level" xml:"level"`
 	// 日志格式
 	Format string `yaml:"format" json:"format" xml:"format"`
+	// 日志格式
+	PathDeep int `yaml:"pathDeep" json:"pathDeep" xml:"pathDeep"`
 }
 
 // ServerConfig 启动服务配置

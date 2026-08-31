@@ -48,6 +48,10 @@ func initLogger(cfg *config.LogConfig) {
 		if cfg.Format == logger.JsonFormat || cfg.Format == logger.ConsoleFormat {
 			opts = append(opts, logger.SetFormat(cfg.Format))
 		}
+		// 设置路径深度
+		if cfg.PathDeep != 0 {
+			opts = append(opts, logger.SetPathDeep(cfg.PathDeep))
+		}
 		// 初始化日志
 		gLog.InitLogger(cfg.Level, opts...)
 	} else {
