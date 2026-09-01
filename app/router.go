@@ -54,7 +54,6 @@ func (r *router) Discovery() registry.Discovery {
 	return r.discovery
 }
 
-// todo 用到这里的都变了
 func (r *router) Tracer() tracing.Tracer {
 	return r.tracer
 }
