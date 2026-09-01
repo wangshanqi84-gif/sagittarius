@@ -86,8 +86,8 @@ func (c *Cron) AddFunc(spec string, cmd func(ctx context.Context)) (cron.EntryID
 			)
 		}
 		if c.lgr != nil {
-			c.lgr.Debug(sCtx, "cron begin func:%v, timestamp:%v",
-				cmdName, beginTime.Unix())
+			c.lgr.Debug(sCtx, "cron begin spec:%v, func:%v, timestamp:%v",
+				spec, cmdName, beginTime.Unix())
 		}
 		// 执行任务，并捕获 panic
 		defer func() {
@@ -104,8 +104,8 @@ func (c *Cron) AddFunc(spec string, cmd func(ctx context.Context)) (cron.EntryID
 				}
 			}
 			if c.lgr != nil {
-				c.lgr.Info(sCtx, "cron finished func:%v, duration:%vms",
-					cmdName, time.Since(beginTime).Milliseconds())
+				c.lgr.Info(sCtx, "cron finished spec:%v, func:%v, duration:%vms",
+					spec, cmdName, time.Since(beginTime).Milliseconds())
 			}
 			// 记录任务结束
 			if span != nil {
