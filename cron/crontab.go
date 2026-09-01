@@ -19,8 +19,9 @@ import (
 type Option func(*options)
 
 type options struct {
-	tracer tracing.Tracer
-	logger *logger.Logger
+	tracer  tracing.Tracer
+	logger  *logger.Logger
+	isDebug bool
 }
 
 // WithTracer 链路追踪
@@ -37,14 +38,24 @@ func WithLogger(logger *logger.Logger) Option {
 	}
 }
 
+// WithDebug 输出调试日志
+func WithDebug() Option {
+	return func(o *options) {
+		o.isDebug = true
+	}
+}
+
 type Cron struct {
-	c      *cron.Cron
-	tracer tracing.Tracer
-	lgr    *logger.Logger
+	c       *cron.Cron
+	tracer  tracing.Tracer
+	lgr     *logger.Logger
+	isDebug bool
 }
 
 func NewCron(opts ...Option) *Cron {
-	o := &options{}
+	o := &options{
+		isDebug: false,
+	}
 	for _, opt := range opts {
 		opt(o)
 	}
@@ -56,8 +67,9 @@ func NewCron(opts ...Option) *Cron {
 				cron.SkipIfStillRunning(cron.DefaultLogger),
 			),
 		),
-		tracer: o.tracer,
-		lgr:    o.logger,
+		tracer:  o.tracer,
+		lgr:     o.logger,
+		isDebug: o.isDebug,
 	}
 	return c
 }
@@ -85,7 +97,7 @@ func (c *Cron) AddFunc(spec string, cmd func(ctx context.Context)) (cron.EntryID
 				),
 			)
 		}
-		if c.lgr != nil {
+		if c.lgr != nil && c.isDebug {
 			c.lgr.Debug(sCtx, "cron begin spec:%v, func:%v, timestamp:%v",
 				spec, cmdName, beginTime.Unix())
 		}
@@ -103,8 +115,8 @@ func (c *Cron) AddFunc(spec string, cmd func(ctx context.Context)) (cron.EntryID
 						cmdName, r)
 				}
 			}
-			if c.lgr != nil {
-				c.lgr.Info(sCtx, "cron finished spec:%v, func:%v, duration:%vms",
+			if c.lgr != nil && c.isDebug {
+				c.lgr.Debug(sCtx, "cron finished spec:%v, func:%v, duration:%vms",
 					spec, cmdName, time.Since(beginTime).Milliseconds())
 			}
 			// 记录任务结束
