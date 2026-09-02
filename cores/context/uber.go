@@ -1,7 +1,6 @@
 package context
 
 import (
-	"log"
 	"net/http"
 	"strings"
 
@@ -45,13 +44,10 @@ func (m *HttpMetadata) Keys() []string {
 }
 
 func (m *HttpMetadata) Set(key, val string) {
-	log.Printf("[SGT HttpMetadata.Set] ===== CALLED ===== key=%s, val=%s, header=%p", key, val, m.Header)
 	m.Header.Set(key, val)
-	log.Printf("[SGT HttpMetadata.Set] After set, header traceparent: %s", m.Header.Get("traceparent"))
 }
 
 func (m *HttpMetadata) Get(key string) string {
-	log.Printf("[SGT HttpMetadata.Get] ===== CALLED ===== key=%s, header=%p", key, m.Header)
 	return m.Header.Get(key)
 }
 

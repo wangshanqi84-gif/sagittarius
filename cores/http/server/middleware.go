@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"runtime"
 	"strconv"
 	"strings"
@@ -53,11 +52,6 @@ func TracingHandler(tracer tracing.Tracer) core {
 		propagator := otel.GetTextMapPropagator()
 		md := gCtx.HttpMetadata{Header: c.Request().Header}
 		pCtx := propagator.Extract(c.ctx, &md)
-		// todo test
-		spanCtx := trace.SpanContextFromContext(pCtx)
-		log.Printf("[SGT SERVER] Extracted traceID: %s\n", spanCtx.TraceID().String())
-		log.Printf("[SGT SERVER] Extracted valid: %v\n", spanCtx.IsValid())
-
 		// 创建服务端span
 		nCtx, span := tracer.Start(pCtx, c.Request().URL.String(),
 			trace.WithSpanKind(trace.SpanKindServer),
