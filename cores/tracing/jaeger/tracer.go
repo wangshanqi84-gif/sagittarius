@@ -7,6 +7,7 @@ import (
 
 	"github.com/wangshanqi84-gif/sagittarius/cores/env"
 	"github.com/wangshanqi84-gif/sagittarius/cores/tracing"
+	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
@@ -90,6 +91,11 @@ func NewTracer(ctx context.Context, serviceName string, opts ...Option) tracing.
 	if option.ebs <= 0 {
 		option.ebs = 512
 	}
+	// 设置W3C标准传播器
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	))
 	// 公共的 Resource 配置
 	resourceOpt := sdk.WithResource(
 		resource.NewWithAttributes(
