@@ -11,7 +11,7 @@ type Metadata struct {
 	metadata.MD
 }
 
-func (m Metadata) Keys() []string {
+func (m *Metadata) Keys() []string {
 	var keys []string
 	for k := range m.MD {
 		keys = append(keys, k)
@@ -19,11 +19,11 @@ func (m Metadata) Keys() []string {
 	return keys
 }
 
-func (m Metadata) Set(key, val string) {
+func (m *Metadata) Set(key, val string) {
 	m.MD[key] = append(m.MD[key], val)
 }
 
-func (m Metadata) Get(key string) string {
+func (m *Metadata) Get(key string) string {
 	if _, has := m.MD[key]; !has {
 		return ""
 	}
@@ -37,7 +37,7 @@ type HttpMetadata struct {
 	Header http.Header
 }
 
-func (m HttpMetadata) Keys() []string {
+func (m *HttpMetadata) Keys() []string {
 	var keys []string
 	for k := range m.Header {
 		keys = append(keys, k)
@@ -45,11 +45,11 @@ func (m HttpMetadata) Keys() []string {
 	return keys
 }
 
-func (m HttpMetadata) Set(key, val string) {
+func (m *HttpMetadata) Set(key, val string) {
 	m.Header[key] = append(m.Header[key], val)
 }
 
-func (m HttpMetadata) Get(key string) string {
+func (m *HttpMetadata) Get(key string) string {
 	if _, has := m.Header[key]; !has {
 		return ""
 	}
