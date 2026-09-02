@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -108,7 +109,12 @@ func TracingInterceptor(baseCtx context.Context, tracer tracing.Tracer) Intercep
 		md := gCtx.HttpMetadata{Header: req.Header}
 		// 注入上下文到 HTTP headers
 		propagator := otel.GetTextMapPropagator()
+		// todo test
+		log.Printf("[SGT CLIENT] Propagator type: %T\n", propagator)
+		log.Printf("[SGT CLIENT] Propagator fields: %+v\n", propagator)
+		log.Printf("[SGT CLIENT] Before Inject, Header traceparent: %s\n", req.Header.Get("traceparent"))
 		propagator.Inject(nCtx, &md)
+		log.Printf("[SGT CLIENT] After Inject, Header traceparent: %s\n", req.Header.Get("traceparent"))
 
 		rsp, err := invoker(nCtx, c, req)
 		if err != nil {
