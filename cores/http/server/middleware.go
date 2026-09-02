@@ -51,7 +51,7 @@ func TracingHandler(tracer tracing.Tracer) core {
 		// 从HTTP headers中提取父上下文
 		propagator := otel.GetTextMapPropagator()
 		md := gCtx.HttpMetadata{Header: c.Request().Header}
-		pCtx := propagator.Extract(c.ctx, md)
+		pCtx := propagator.Extract(c.ctx, &md)
 		// 创建服务端span
 		nCtx, span := tracer.Start(pCtx, c.Request().URL.String(),
 			trace.WithSpanKind(trace.SpanKindServer),

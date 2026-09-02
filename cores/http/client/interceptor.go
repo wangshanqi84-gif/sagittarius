@@ -108,7 +108,7 @@ func TracingInterceptor(baseCtx context.Context, tracer tracing.Tracer) Intercep
 		md := gCtx.HttpMetadata{Header: req.Header}
 		// 注入上下文到 HTTP headers
 		propagator := otel.GetTextMapPropagator()
-		propagator.Inject(nCtx, md)
+		propagator.Inject(nCtx, &md)
 
 		rsp, err := invoker(nCtx, c, req)
 		if err != nil {

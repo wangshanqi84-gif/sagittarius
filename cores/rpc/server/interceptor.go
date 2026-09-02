@@ -58,7 +58,7 @@ func TracingServerUnaryInterceptor(tracer tracing.Tracer) grpc.UnaryServerInterc
 		md := gCtx.Metadata{MD: rpcMD}
 
 		propagator := otel.GetTextMapPropagator()
-		pCtx := propagator.Extract(ctx, md)
+		pCtx := propagator.Extract(ctx, &md)
 		// 创建服务端 span
 		nCtx, span := tracer.Start(pCtx, info.FullMethod,
 			trace.WithSpanKind(trace.SpanKindServer),

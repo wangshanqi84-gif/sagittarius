@@ -47,7 +47,7 @@ func TracingClientUnaryInterceptor(baseCtx context.Context, tracer tracing.Trace
 			gCtx.SetUberMeta(md, fmt.Sprintf("%s.%s.%s", td.Namespace, td.Product, td.ServiceName))
 		}
 		propagator := otel.GetTextMapPropagator()
-		propagator.Inject(ctx, md)
+		propagator.Inject(ctx, &md)
 
 		nCtx = metadata.NewOutgoingContext(nCtx, md.MD)
 		err := invoker(nCtx, method, request, reply, cc, opts...)
