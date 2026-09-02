@@ -110,7 +110,7 @@ func TracingInterceptor(baseCtx context.Context, tracer tracing.Tracer) Intercep
 		propagator := otel.GetTextMapPropagator()
 		propagator.Inject(nCtx, md)
 
-		rsp, err := invoker(ctx, c, req)
+		rsp, err := invoker(nCtx, c, req)
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
