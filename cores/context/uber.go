@@ -21,17 +21,15 @@ func (m *Metadata) Keys() []string {
 }
 
 func (m *Metadata) Set(key, val string) {
-	m.MD[key] = append(m.MD[key], val)
+	m.MD.Set(key, val)
 }
 
 func (m *Metadata) Get(key string) string {
-	if _, has := m.MD[key]; !has {
+	ss := m.MD.Get(key)
+	if len(ss) == 0 {
 		return ""
 	}
-	if len(m.MD[key]) == 0 {
-		return ""
-	}
-	return m.MD[key][0]
+	return ss[0]
 }
 
 type HttpMetadata struct {
@@ -48,19 +46,13 @@ func (m *HttpMetadata) Keys() []string {
 
 func (m *HttpMetadata) Set(key, val string) {
 	log.Printf("[SGT HttpMetadata.Set] ===== CALLED ===== key=%s, val=%s, header=%p", key, val, m.Header)
-	m.Header[key] = append(m.Header[key], val)
+	m.Header.Set(key, val)
 	log.Printf("[SGT HttpMetadata.Set] After set, header traceparent: %s", m.Header.Get("traceparent"))
 }
 
 func (m *HttpMetadata) Get(key string) string {
 	log.Printf("[SGT HttpMetadata.Get] ===== CALLED ===== key=%s, header=%p", key, m.Header)
-	if _, has := m.Header[key]; !has {
-		return ""
-	}
-	if len(m.Header[key]) == 0 {
-		return ""
-	}
-	return m.Header[key][0]
+	return m.Header.Get(key)
 }
 
 const (
