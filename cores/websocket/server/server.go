@@ -91,6 +91,10 @@ func (c *Conn) SetParam(key string, value interface{}) {
 	c.params[key] = fmt.Sprintf("%v", value)
 }
 
+func (c *Conn) Close() error {
+	return c.c.Close()
+}
+
 type Engine struct {
 	*Group
 	port    string
