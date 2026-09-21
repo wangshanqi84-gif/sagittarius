@@ -99,26 +99,7 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 	if c.driverName != "mysql" && c.driverName != "postgres" {
 		return nil, errors.New(`driverName must be "mysql" or "postgres"`)
 	}
-	// 读写分离配置
-	if len(slave) > 0 {
-		var dail []gorm.Dialector
-		for _, dns := range slave {
-			dail = append(dail, c.createDial(dns))
-		}
-		resolver := dbresolver.Register(dbresolver.Config{
-			Sources:  []gorm.Dialector{c.createDial(master)},
-			Replicas: dail,
-		})
-		c.resolver = resolver
-	}
-	// 链接
-	if err := c.open(master); err != nil {
-		return nil, err
-	}
-	sqlDB, err := c.db.DB()
-	if err != nil {
-		return nil, err
-	}
+	// 配置处理
 	// 设置打开数据库连接的最大数量
 	if c.maxOpen == 0 {
 		if c.driverName == "postgres" {
@@ -127,7 +108,6 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 			c.maxOpen = DefaultMysqlMaxOpen
 		}
 	}
-	sqlDB.SetMaxOpenConns(c.maxOpen)
 	// 设置空闲连接池中连接的最大数量
 	if c.maxIdle == 0 {
 		if c.driverName == "postgres" {
@@ -136,18 +116,35 @@ func NewClient(master string, slave []string, opts ...Option) (*Client, error) {
 			c.maxIdle = DefaultMysqlMaxIdle
 		}
 	}
-	sqlDB.SetMaxIdleConns(c.maxIdle)
 	// 设置连接可复用的最大时间
 	if c.maxLifetime == 0 {
 		c.maxLifetime = DefaultLifeTime
 	}
-	sqlDB.SetConnMaxLifetime(c.maxLifetime)
 	// 设置连接池链接最大空闲时长
 	if c.maxIdleTime == 0 {
 		c.maxIdleTime = DefaultIdleTime
 	}
-	sqlDB.SetConnMaxIdleTime(c.maxIdleTime)
-	if err = sqlDB.Ping(); err != nil {
+	var dail []gorm.Dialector
+	for _, dsn := range slave {
+		dail = append(dail, c.createDial(dsn))
+	}
+	// 主从处理
+	resolver := dbresolver.Register(dbresolver.Config{
+		Sources:  []gorm.Dialector{c.createDial(master)},
+		Replicas: dail,
+	})
+	// 设置连接池参数
+	resolver.
+		SetMaxOpenConns(c.maxOpen).
+		SetMaxIdleConns(c.maxIdle).
+		SetConnMaxLifetime(c.maxLifetime).
+		SetConnMaxIdleTime(c.maxIdleTime)
+	c.resolver = resolver
+	// 链接
+	if err := c.open(master); err != nil {
+		return nil, err
+	}
+	if err := c.Ping(); err != nil {
 		return nil, errors.New(fmt.Sprintf("database ping failed: %v", err))
 	}
 	return c, nil

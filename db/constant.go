@@ -10,5 +10,5 @@ const (
 	DefaultPostgresMaxIdle = 5
 	DefaultPostgresMaxOpen = 25
 	DefaultLifeTime        = time.Hour
-	DefaultIdleTime        = 15 * time.Minute
+	DefaultIdleTime        = 30 * time.Minute
 )
