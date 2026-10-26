@@ -694,8 +694,8 @@ func InitKafkaConsumer(name string, opts ...kafka.ConsumerOption) (*kafka.Consum
 	if cfg.TopicCreateEnable {
 		opts = append(opts, kafka.ConsumerTopicCreateEnable(cfg.TopicCreateEnable))
 	}
-	if !cfg.AutoCommit {
-		opts = append(opts, kafka.ConsumerAutoCommit(cfg.AutoCommit))
+	if cfg.DisableAutoCommit {
+		opts = append(opts, kafka.ConsumerAutoCommit(false))
 	}
 	clientID := app.Router().Service().ServiceName + ":" + app.Router().Service().ID
 	opts = append(opts, kafka.ConsumerClientID(clientID))

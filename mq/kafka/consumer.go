@@ -107,6 +107,7 @@ func NewConsumer(ctx context.Context, groupName string, brokers []string, topics
 		reBalance:         []string{defaultConsumerRebalanceStrategy},
 		maxWaitTime:       defaultConsumerMaxWaitTime,
 		topicCreateEnable: false,
+		autoCommit:        true,
 		workerNumbers:     defaultConsumerWorkerNumbers,
 		seqNumbers:        defaultConsumerSeqNumbers,
 	}

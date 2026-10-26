@@ -249,8 +249,8 @@ type KafkaConsumerConfig struct {
 	MaxWaitTime string `yaml:"maxWaitTime" json:"maxWaitTime" toml:"maxWaitTime"`
 	// 是否允许自动创建不存在的topic 默认false
 	TopicCreateEnable bool `yaml:"topicCreateEnable" json:"topicCreateEnable" toml:"topicCreateEnable"`
-	// 是否允许自动创提交offset
-	AutoCommit bool `yaml:"autoCommit" json:"autoCommit" toml:"autoCommit"`
+	// 是否禁用自动创提交offset
+	DisableAutoCommit bool `yaml:"disableAutoCommit" json:"disableAutoCommit" toml:"disableAutoCommit"`
 	// handler池数量
 	WorkerNumbers int `yaml:"workerNumbers" json:"workerNumbers" toml:"workerNumbers"`
 	// handler队列缓冲区大小
